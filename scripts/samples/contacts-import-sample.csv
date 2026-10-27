@@ -1,0 +1,9 @@
+First Name,Last Name,Email,Phone,Company,Job Title,Tags,Notes
+Riya,Kapoor,riya.kapoor@amazon.example,+91 98111 22001,Amazon,SDE II,client;tech,Referred by Aarav
+Karan,Bhatia,karan.bhatia@ola.example,98111-22002,Ola,Operations Lead,lead,
+Pooja,Thakur,pooja.thakur@zoho.example,,Zoho,QA Engineer,tech,
+,Missing,no.first.name@example.com,9811122004,Unknown,,,This row fails: firstName is required
+Sameer,Khan,not-an-email,9811122005,Myntra,Designer,vendor,This row fails: invalid email
+Neha,Arora,,,Airtel,Manager,,This row fails: needs email or phone
+Riya,Duplicate,riya.kapoor@amazon.example,,Amazon,,,This row fails: email repeated in this file
+Tanvi,Sood,tanvi.sood@razorpay.example,+919811122008,Razorpay,"Engineer, Payments","fintech,client",Quoted fields can contain commas
