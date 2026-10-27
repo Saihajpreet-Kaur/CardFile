@@ -36,7 +36,6 @@ async function saveToLocalDisk(buffer, mimetype) {
   return `/uploads/${fileName}`;
 }
 
-/** Stores an image (from multer memory storage) and returns its public URL. */
 export async function uploadImage({ buffer, mimetype }) {
   if (config.cloudinary.enabled) return uploadToCloudinary(buffer);
 
