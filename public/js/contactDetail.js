@@ -1,4 +1,3 @@
-/* Contact detail page: contact card, notes, follow-ups and the interaction timeline (calls, emails, meetings). */
 
 import {
   $,
@@ -24,7 +23,7 @@ import { api, navigate } from './core.js';
 import { confirmDialog, mountPage, refreshSidebar, toast, toastError } from './ui.js';
 import { openContactForm } from './contacts.js';
 
-// ---------- contactDetail ----------
+
 
 const TYPES = {
   call: { label: 'Call', plural: 'Calls', icon: 'phone', tint: 'bg-accent/10 text-accent', placeholder: 'What happened on this call?' },
@@ -34,7 +33,6 @@ const TYPES = {
 
 const DASH = '<span class="text-faint">—</span>';
 
-/** Text and colour for a follow-up date relative to today. */
 function describeFollowUp(iso) {
   const days = daysFromToday(iso);
   if (days < 0) {
@@ -51,7 +49,7 @@ const TONES = {
   muted: 'bg-well text-muted',
 };
 
-/** A chosen calendar day + the current time of day, so the timeline shows a sensible time. */
+
 function dateInputToIso(value) {
   const now = new Date();
   const date = new Date(`${value}T00:00`);
@@ -59,9 +57,7 @@ function dateInputToIso(value) {
   return date.toISOString();
 }
 
-/* ------------------------------------------------------------------ */
-/* Sections                                                            */
-/* ------------------------------------------------------------------ */
+
 
 function detailRow(iconName, label, value) {
   return `
@@ -257,9 +253,6 @@ function timelineItems(interactions, filter, readOnly) {
     </ol>`;
 }
 
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
 
 export async function renderContactDetail({ params }) {
   const root = mountPage(`
@@ -292,7 +285,7 @@ export async function renderContactDetail({ params }) {
     return undefined;
   }
 
-  refreshSidebar(); // opening a contact updates "Recently viewed"
+  refreshSidebar(); 
 
   const content = $('[data-content]', root);
   content.innerHTML = `
@@ -385,7 +378,6 @@ export async function renderContactDetail({ params }) {
     });
   }
 
-  /* ---------- clicks ---------- */
   const ACTIONS = {
     async favourite() {
       const { data, message } = await api.toggleFavourite(contact.id);
@@ -393,7 +385,7 @@ export async function renderContactDetail({ params }) {
       renderContact();
       toast(message);
     },
-    // The form announces DATA_CHANGED after saving, which reloads this page
+   
     edit: () => openContactForm(contact),
     async trash() {
       const confirmed = await confirmDialog({
