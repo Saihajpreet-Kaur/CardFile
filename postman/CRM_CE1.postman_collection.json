@@ -1,0 +1,300 @@
+{
+  "info": {
+    "name": "Mini CRM API (CE-1)",
+    "description": "Contact Manager & Mini CRM REST API. Run \"Auth > Login\" first: it saves the JWT into the {{token}} variable, and \"Create contact\" saves {{contactId}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "contactId", "value": "" },
+    { "key": "interactionId", "value": "" },
+    { "key": "userId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/health" },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('API is up', () => pm.response.to.have.status(200));"] }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Student\",\n  \"email\": \"student{{$randomInt}}@crm.test\",\n  \"password\": \"Student@123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('No password hash in response', () => pm.expect(pm.response.json().data.user).to.not.have.property('passwordHash'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - validation error (422)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"A\",\n  \"email\": \"not-an-email\",\n  \"password\": \"weak\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('422 with field errors', () => { pm.response.to.have.status(422); pm.expect(pm.response.json().details).to.be.an('array').that.is.not.empty; });"] }
+            }
+          ]
+        },
+        {
+          "name": "Login (demo user)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"demo@crm.test\",\n  \"password\": \"Demo@1234\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', pm.response.json().data.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (admin)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@crm.test\",\n  \"password\": \"Admin@1234\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.collectionVariables.set('adminToken', pm.response.json().data.token);"] }
+            }
+          ]
+        },
+        {
+          "name": "Login - wrong password (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"demo@crm.test\",\n  \"password\": \"wrong\"\n}" }
+          }
+        },
+        { "name": "Me", "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" } }
+      ]
+    },
+    {
+      "name": "Contacts",
+      "item": [
+        {
+          "name": "List (paginated, sorted, filtered)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/contacts?page=1&limit=5&sort=-createdAt&search=&tag=&favourite=&status=active",
+              "host": ["{{baseUrl}}"],
+              "path": ["contacts"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" },
+                { "key": "sort", "value": "-createdAt", "description": "createdAt, updatedAt, firstName, lastName, email, company (prefix - for descending)" },
+                { "key": "search", "value": "", "description": "name, email, phone, company, designation, tags" },
+                { "key": "tag", "value": "" },
+                { "key": "company", "value": "", "disabled": true },
+                { "key": "favourite", "value": "", "description": "true / false" },
+                { "key": "status", "value": "active", "description": "active / trash" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('Has pagination', () => pm.expect(pm.response.json().pagination).to.include.keys('page', 'limit', 'total', 'totalPages'));"] }
+            }
+          ]
+        },
+        {
+          "name": "Create contact",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/contacts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Gurleen\",\n  \"lastName\": \"Sidhu\",\n  \"email\": \"gurleen.{{$randomInt}}@example.com\",\n  \"phone\": \"+91 98000 {{$randomInt}}1\",\n  \"company\": \"Chitkara Labs\",\n  \"designation\": \"Intern\",\n  \"tags\": [\"lead\", \"college\"],\n  \"notes\": \"Added from Postman\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('contactId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create contact - duplicate email (409)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/contacts",
+            "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Copy\",\n  \"email\": \"aarav.sharma@infosys.example\"\n}" }
+          }
+        },
+        { "name": "Get contact", "request": { "method": "GET", "url": "{{baseUrl}}/contacts/{{contactId}}" } },
+        {
+          "name": "Update contact",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/contacts/{{contactId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"designation\": \"Software Engineer\",\n  \"tags\": \"client, vip\"\n}" }
+          }
+        },
+        { "name": "Toggle favourite", "request": { "method": "PATCH", "url": "{{baseUrl}}/contacts/{{contactId}}/favourite" } },
+        { "name": "Recently viewed", "request": { "method": "GET", "url": "{{baseUrl}}/contacts/recent" } },
+        {
+          "name": "Upload photo",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/contacts/{{contactId}}/photo",
+            "body": { "mode": "formdata", "formdata": [{ "key": "photo", "type": "file", "src": [] }] },
+            "description": "Choose a JPEG/PNG/WEBP image (max 2 MB) in the Body tab."
+          }
+        },
+        { "name": "Move to trash (soft delete)", "request": { "method": "DELETE", "url": "{{baseUrl}}/contacts/{{contactId}}" } },
+        { "name": "Restore from trash", "request": { "method": "PATCH", "url": "{{baseUrl}}/contacts/{{contactId}}/restore" } },
+        {
+          "name": "Delete permanently (must be in trash)",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/contacts/{{contactId}}/permanent" }
+        },
+        {
+          "name": "Import CSV",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/contacts/import",
+            "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "src": [] }] },
+            "description": "Choose samples/contacts-import-sample.csv in the Body tab. The response lists every failed row with its line number."
+          }
+        },
+        {
+          "name": "Export CSV (current filters)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/contacts/export?tag=client&sort=firstName",
+              "host": ["{{baseUrl}}"],
+              "path": ["contacts", "export"],
+              "query": [
+                { "key": "tag", "value": "client" },
+                { "key": "sort", "value": "firstName" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Interactions",
+      "item": [
+        {
+          "name": "Add interaction",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/contacts/{{contactId}}/interactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"call\",\n  \"note\": \"Intro call, interested in a demo\",\n  \"date\": \"2026-10-20\",\n  \"followUpDate\": \"2026-11-02\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.collectionVariables.set('interactionId', pm.response.json().data.id);"] }
+            }
+          ]
+        },
+        { "name": "List interactions", "request": { "method": "GET", "url": "{{baseUrl}}/contacts/{{contactId}}/interactions" } },
+        {
+          "name": "Delete interaction",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/contacts/{{contactId}}/interactions/{{interactionId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Users (admin only)",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["const demo = pm.response.json().data.find(u => u.role === 'user'); if (demo) pm.collectionVariables.set('userId', demo.id);"] }
+            }
+          ]
+        },
+        {
+          "name": "List users as normal user (403)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/users" }
+        },
+        {
+          "name": "Change role",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/users/{{userId}}/role",
+            "body": { "mode": "raw", "raw": "{\n  \"role\": \"user\"\n}" }
+          }
+        }
+      ]
+    }
+  ]
+}
