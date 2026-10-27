@@ -3,9 +3,6 @@ import { pipeline } from 'node:stream/promises';
 import { parse } from 'csv-parse/sync';
 import { Transform as CsvTransform } from '@json2csv/node';
 
-
-
-// Lets users upload files with friendly headers like "First Name" or "Job Title"
 const HEADER_ALIASES = {
   firstname: 'firstName',
   first: 'firstName',
@@ -30,10 +27,6 @@ const HEADER_ALIASES = {
 const normalizeHeader = (header) =>
   HEADER_ALIASES[header.toLowerCase().replace(/[\s_-]/g, '')] ?? header.trim();
 
-/**
- * Returns [{ line, data }] where line is the row's line number in the file.
- * Throws a csv-parse error (code starts with "CSV_") when the file is not valid CSV.
- */
 export function parseCsv(buffer) {
   const records = parse(buffer, {
     columns: (headers) => headers.map(normalizeHeader),
