@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <%- include('partials/head', {
+      title: 'Cardfile · Contact manager & mini CRM',
+      description: 'Cardfile keeps your contacts, notes and every call, email or meeting in one place, with follow-up reminders and CSV import and export.',
+    }) %>
+    <script>
+      // Old bookmarks such as /#/contacts belong to the app, which now lives at /app
+      if (location.hash.indexOf('#/') === 0) location.replace('/app' + location.hash);
+    </script>
+    <style>
+      html { scroll-padding-top: 88px; }
+
+      /* ---------- Hero background: fading index-card rules and two slow colour glows ---------- */
+      .hero-rules {
+        background-image: repeating-linear-gradient(to bottom, transparent 0 39px, rgb(var(--ruled-line) / 0.1) 39px 40px);
+        -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 35%, #000 25%, transparent 75%);
+        mask-image: radial-gradient(ellipse 85% 75% at 50% 35%, #000 25%, transparent 75%);
+      }
+      .glow {
+        position: absolute;
+        border-radius: 9999px;
+        filter: blur(72px);
+        pointer-events: none;
+        animation: drift 16s ease-in-out infinite alternate;
+      }
+      @keyframes drift { to { transform: translate3d(56px, 40px, 0) scale(1.12); } }
+
+      /* ---------- Entrance: words rise one by one, then the marker underline draws itself ---------- */
+      .word {
+        display: inline-block;
+        opacity: 0;
+        transform: translateY(0.45em);
+        animation: rise 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        animation-delay: calc(150ms + var(--i) * 80ms);
+      }
+      .marker path {
+        stroke-dasharray: 1;
+        stroke-dashoffset: 1;
+        animation: draw 0.9s 1.05s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      }
+      .fade-up {
+        opacity: 0;
+        transform: translateY(16px);
+        animation: rise 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        animation-delay: var(--delay, 0ms);
+      }
+      @keyframes rise { to { opacity: 1; transform: none; } }
+      @keyframes draw { to { stroke-dashoffset: 0; } }
+
+      /* ---------- Hero stage: a 520px scene, scaled down on phones ---------- */
+      .stage-frame { width: 340px; height: 340px; }
+      .stage { scale: 0.654; transform-origin: top left; }
+      @media (min-width: 640px) {
+        .stage-frame { width: 520px; height: 520px; }
+        .stage { scale: 1; }
+      }
+      @media (max-width: 379px) {
+        .stage-frame { width: 292px; height: 292px; }
+        .stage { scale: 0.5615; }
+      }
+      .stage-tilt {
+        transform: perspective(1400px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+        transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      [data-depth] { transition: translate 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+      /* Floating widgets bob gently, each on its own timing */
+      .float { animation: float var(--float-duration, 8s) ease-in-out var(--float-delay, 0s) infinite; }
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-12px); }
+      }
+
+      .caret {
+        display: inline-block;
+        width: 1.5px;
+        height: 1.05em;
+        margin-left: 1px;
+        vertical-align: -0.15em;
+        background: rgb(var(--accent));
+        animation: blink 1s steps(1) infinite;
+      }
+      @keyframes blink { 50% { opacity: 0; } }
+
+      .search-result { transition: opacity 0.3s, transform 0.3s; }
+      .search-result[data-hidden] { opacity: 0; transform: translateY(-4px); }
+
+      .toast-pop { animation: toast 7s cubic-bezier(0.2, 0.8, 0.2, 1) 2s infinite both; }
+      @keyframes toast {
+        0%, 4% { opacity: 0; transform: translateY(10px) scale(0.95); }
+        10%, 55% { opacity: 1; transform: none; }
+        62%, 100% { opacity: 0; transform: translateY(-6px) scale(0.98); }
+      }
+
+      .import-bar { width: 96%; animation: import-bar 6s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+      .import-busy { opacity: 0; animation: import-busy 6s infinite; }
+      .import-done { animation: import-done 6s infinite; }
+      @keyframes import-bar {
+        0% { width: 0; }
+        55%, 100% { width: 96%; }
+      }
+      @keyframes import-busy {
+        0%, 54% { opacity: 1; }
+        56%, 100% { opacity: 0; }
+      }
+      @keyframes import-done {
+        0%, 54% { opacity: 0; }
+        56%, 100% { opacity: 1; }
+      }
+
+      .pulse-dot {
+        position: relative;
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 9999px;
+        background: currentColor;
+      }
+      .pulse-dot::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: currentColor;
+        animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+      }
+      @keyframes ping { 75%, 100% { transform: scale(2.8); opacity: 0; } }
+
+      /* ---------- Scroll reveal (only when JavaScript runs, so nothing stays hidden without it) ---------- */
+      .js .reveal {
+        opacity: 0;
+        transform: translateY(28px);
+        transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+        transition-delay: calc(var(--i, 0) * 90ms);
+      }
+      .js .reveal.is-visible { opacity: 1; transform: none; }
+      .js .stagger > * { opacity: 0; transform: translateY(10px); }
+      .is-visible .stagger > * {
+        animation: rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        animation-delay: calc(350ms + var(--i, 0) * 130ms);
+      }
+      .is-visible .fill-bar { animation: fill 1.6s 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+      @keyframes fill { from { width: 0; } }
+
+      /* ---------- Feature cards: lift and a soft spotlight that follows the mouse ---------- */
+      .feature { transition: translate 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s, box-shadow 0.3s; }
+      .feature:hover {
+        translate: 0 -4px;
+        border-color: rgb(var(--accent) / 0.45);
+        box-shadow: 0 22px 44px -22px rgb(var(--shadow) / 0.4);
+      }
+      .feature::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        background: radial-gradient(380px circle at var(--x, 50%) var(--y, 0%), rgb(var(--accent) / 0.1), transparent 45%);
+      }
+      .feature:hover::after { opacity: 1; }
+
+      /* ---------- "Built with" marquee ---------- */
+      .marquee {
+        -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+        mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+      }
+      .marquee-track { display: flex; width: max-content; animation: marquee 40s linear infinite; }
+      .marquee:hover .marquee-track { animation-play-state: paused; }
+      @keyframes marquee { to { transform: translateX(-50%); } }
+
+      /* ---------- How it works: the dashed line draws across the three steps ---------- */
+      .connector {
+        background-image: linear-gradient(to right, rgb(var(--faint) / 0.7) 50%, transparent 0);
+        background-size: 10px 1px;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 1.4s 0.3s cubic-bezier(0.65, 0, 0.35, 1);
+      }
+      .is-visible .connector { transform: scaleX(1); }
+
+      /* ---------- Under the hood: a request lights up each layer in turn ---------- */
+      .hood-grid {
+        background-image:
+          linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+        background-size: 44px 44px;
+        -webkit-mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+        mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+      }
+      .flow-dot, .flow-label { animation: 4.8s ease-in-out infinite; animation-delay: calc(var(--i) * 0.5s); }
+      .flow-dot { animation-name: flow-dot; }
+      .flow-label { color: rgb(255 255 255 / 0.6); animation-name: flow-label; }
+      @keyframes flow-dot {
+        0%, 16%, 100% { background: #18233d; box-shadow: none; }
+        5%, 10% { background: #7898f5; box-shadow: 0 0 0 6px rgb(120 152 245 / 0.22), 0 0 26px rgb(120 152 245 / 0.75); }
+      }
+      @keyframes flow-label {
+        0%, 16%, 100% { color: rgb(255 255 255 / 0.6); }
+        5%, 10% { color: #fff; }
+      }
+
+      /* ---------- FAQ ---------- */
+      .faq summary { list-style: none; }
+      .faq summary::-webkit-details-marker { display: none; }
+      .faq[open] .faq-chevron { rotate: 90deg; }
+      .faq[open] .faq-body { animation: open-faq 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+      @keyframes open-faq { from { opacity: 0; transform: translateY(-6px); } }
+
+      /* ---------- Call to action: tags drifting around the card ---------- */
+      .drift { animation: drift-y var(--drift-duration, 7s) ease-in-out infinite alternate; }
+      @keyframes drift-y { to { transform: translateY(-14px) rotate(var(--drift-rotate, 0deg)); } }
+
+      /* ---------- Fixed header, scroll progress and the floating widgets ---------- */
+      .site-header {
+        border-bottom: 1px solid transparent;
+        transition: background-color 0.3s, border-color 0.3s;
+      }
+      .site-header[data-scrolled] {
+        background: rgb(var(--paper) / 0.82);
+        border-color: rgb(var(--rule) / 0.8);
+        -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
+      }
+      .scroll-progress { transform: scaleX(0); transform-origin: left; }
+      .floating-cta {
+        opacity: 0;
+        translate: 0 18px;
+        pointer-events: none;
+        transition: opacity 0.35s, translate 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .floating-cta[data-show] { opacity: 1; translate: 0 0; pointer-events: auto; }
+      .api-status .status-dot { color: rgb(var(--faint)); }
+      .api-status[data-state='up'] .status-dot { color: rgb(var(--leaf)); }
+      .api-status[data-state='down'] .status-dot { color: rgb(var(--danger)); }
+    </style>
+  </head>
+
+  <body class="overflow-x-clip">
+    <%# ================= Header ================= %>
+    <div class="scroll-progress fixed inset-x-0 top-0 z-[60] h-[3px] bg-accent" data-progress></div>
+
+    <header class="site-header fixed inset-x-0 top-0 z-50" data-header>
+      <div class="mx-auto flex h-[72px] max-w-6xl items-center gap-3 px-4 sm:px-6">
+        <a href="/" class="shrink-0" aria-label="Cardfile home"><%- logo() %></a>
+
+        <nav class="ml-6 hidden items-center gap-1 md:flex" aria-label="Sections">
+          <% navLinks.forEach((link) => { %>
+            <a href="<%= link.href %>" class="rounded-lg px-3 py-2 text-sm font-semibold text-muted transition-colors hover:bg-well hover:text-ink"><%= link.label %></a>
+          <% }) %>
+        </nav>
+
+        <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <button type="button" class="btn-icon" data-theme-toggle aria-label="Switch between light and dark theme">
+            <%- icon('moon', { className: 'dark:hidden' }) %><%- icon('sun', { className: 'hidden dark:block' }) %>
+          </button>
+          <div class="flex items-center gap-2" data-when="guest">
+            <a href="/app#/signin" class="btn-ghost hidden sm:inline-flex">Sign in</a>
+            <a href="/app#/signup" class="btn-primary">Get started</a>
+          </div>
+          <a href="/app#/contacts" class="btn-primary hidden" data-when="user"><%- icon('users', { size: 16 }) %> My contacts</a>
+          <button type="button" class="btn-icon md:hidden" data-menu-toggle aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+            <%- icon('menu', { size: 20 }) %>
+          </button>
+        </div>
+      </div>
+
+      <nav id="mobile-menu" class="hidden border-t border-rule bg-paper/95 px-4 pb-4 pt-2 backdrop-blur md:hidden" aria-label="Sections" data-mobile-menu>
+        <% navLinks.forEach((link) => { %>
+          <a href="<%= link.href %>" class="block rounded-lg px-3 py-2.5 font-semibold text-muted hover:bg-well hover:text-ink"><%= link.label %></a>
+        <% }) %>
+        <a href="/app#/signin" class="block rounded-lg px-3 py-2.5 font-semibold text-accent hover:bg-well" data-when="guest">Sign in</a>
+      </nav>
+    </header>
+
+    <%# Centered section heading used by every section below. Usage: sectionHeading({ eyebrow, title, text, dark }) %>
+    <% const sectionHeading = ({ eyebrow, title, text, dark }) => { %>
+      <div class="reveal mx-auto max-w-2xl text-center">
+        <p class="text-[13px] font-bold uppercase tracking-[0.16em] <%= dark ? 'text-[#9DB4F7]' : 'text-accent' %>"><%= eyebrow %></p>
+        <h2 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-[2.6rem] sm:leading-[1.1]"><%= title %></h2>
+        <% if (text) { %>
+          <p class="mt-4 text-lg <%= dark ? 'text-white/65' : 'text-muted' %>"><%= text %></p>
+        <% } %>
+      </div>
+    <% } %>
+
+    <main>
+      <%# ================= Hero ================= %>
+      <section id="top" class="relative isolate overflow-hidden pt-[72px]">
+        <div class="hero-rules absolute inset-0 -z-10" aria-hidden="true"></div>
+        <div class="glow -right-24 -top-32 -z-10 h-[460px] w-[460px] bg-accent/25 dark:bg-accent/20" aria-hidden="true"></div>
+        <div class="glow -left-40 top-[52%] -z-10 h-[380px] w-[380px] bg-manila/20 dark:bg-manila/10" style="animation-delay: -7s" aria-hidden="true"></div>
+
+        <div class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-10 sm:px-6 lg:grid-cols-[1fr_520px] lg:gap-6 lg:pb-28 lg:pt-16">
+          <div class="text-center lg:text-left">
+            <p class="fade-up inline-flex items-center gap-2 rounded-full border border-rule bg-card/80 px-3 py-1 text-[13px] font-semibold text-muted shadow-lift backdrop-blur">
+              <%- icon('sparkles', { size: 14, className: 'text-accent' }) %> Contact manager &amp; mini CRM
+            </p>
+
+            <h1 class="mt-6 text-[2.6rem] font-extrabold leading-[1.05] tracking-[-0.035em] sm:text-6xl lg:text-[4.1rem]">
+              <% headline.forEach((word, index) => { %><span class="word" style="--i: <%= index %>"><%= word %></span> <% }) %>
+              <span class="word relative whitespace-nowrap text-accent" style="--i: <%= headline.length %>">
+                <%= headlineHighlight %>
+                <svg class="marker absolute -bottom-1 left-0 h-3 w-full sm:-bottom-2 sm:h-4" viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true">
+                  <path d="M3 10 C 45 3, 120 2, 197 8" pathLength="1" fill="none" stroke="rgb(var(--manila))" stroke-width="5" stroke-linecap="round" />
+                </svg>
+              </span>
+            </h1>
+
+            <p class="fade-up mx-auto mt-7 max-w-xl text-lg leading-relaxed text-muted lg:mx-0" style="--delay: 650ms">
+              Cardfile keeps names, numbers, notes and every call, email or meeting in one place, so you always know who
+              to follow up with, and when.
+            </p>
+
+            <div class="fade-up mt-8" style="--delay: 800ms">
+              <div class="flex flex-wrap justify-center gap-3 lg:justify-start" data-when="guest">
+                <a href="/app#/signup" class="btn-primary btn-lg">Create free account <%- icon('chevronRight', { size: 18 }) %></a>
+                <a href="/app#/signin" class="btn-secondary btn-lg">Sign in</a>
+              </div>
+              <div class="hidden flex flex-wrap justify-center gap-3 lg:justify-start" data-when="user">
+                <a href="/app#/contacts" class="btn-primary btn-lg">Go to my contacts <%- icon('chevronRight', { size: 18 }) %></a>
+              </div>
+            </div>
+
+            <ul class="fade-up mt-8 flex flex-wrap justify-center gap-x-5 gap-y-2 text-[13px] font-medium text-muted lg:justify-start" style="--delay: 950ms">
+              <% ['CSV import & export', 'Light & dark mode', 'Works on your phone'].forEach((point) => { %>
+                <li class="flex items-center gap-1.5"><%- icon('checkCircle', { size: 15, className: 'text-leaf' }) %><%= point %></li>
+              <% }) %>
+            </ul>
+          </div>
+
+          <div class="fade-up" style="--delay: 300ms">
+            <%# Floating widgets next to the headline. Purely decorative (aria-hidden).
+                Each widget sits in a wrapper with data-depth (mouse parallax, see public/js/home.js)
+                and floats on its own timing (.float above). %>
+            <div class="stage-frame relative mx-auto" aria-hidden="true">
+              <%# .stage scales the 520px scene down on phones; [data-stage] tilts it towards the mouse %>
+              <div class="stage absolute left-0 top-0 h-[520px] w-[520px]">
+              <div class="stage-tilt absolute inset-0" data-stage>
+
+                <%# Two cards peeking out behind the main one %>
+                <div class="absolute left-[96px] right-[44px] top-[80px]" data-depth="0.15">
+                  <div class="index-card h-[300px] rotate-[6deg] opacity-60 shadow-lift"></div>
+                </div>
+                <div class="absolute left-[44px] right-[96px] top-[86px]" data-depth="0.25">
+                  <div class="index-card h-[300px] -rotate-[4deg] opacity-80 shadow-lift"></div>
+                </div>
+
+                <%# Main contact card %>
+                <div class="absolute left-[70px] right-[70px] top-[92px]" data-depth="0.4">
+                  <div class="float index-card ruled shadow-pop" style="--float-duration: 9s">
+                    <div class="flex items-start gap-3.5 px-5 pt-6">
+                      <%- avatar({ name: 'Meera Iyer', size: 'lg' }) %>
+                      <div class="min-w-0 flex-1 pt-0.5">
+                        <p class="flex items-center gap-1.5 text-lg font-extrabold leading-tight">
+                          Meera Iyer <%- icon('star', { size: 15, fill: 'currentColor', className: 'text-manila' }) %>
+                        </p>
+                        <p class="mt-0.5 text-[13px] text-muted">Recruiter at <b class="font-semibold text-ink">Stellar Edu</b></p>
+                        <div class="mt-2 flex gap-1">
+                          <span class="chip"><span class="text-faint">#</span>campus</span>
+                          <span class="chip"><span class="text-faint">#</span>lead</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mt-3 px-5 text-[13px] leading-8 text-muted">
+                      <p class="flex items-center gap-2.5"><%- icon('mail', { size: 14, className: 'text-faint' }) %>meera@stellaredu.example</p>
+                      <p class="flex items-center gap-2.5"><%- icon('phone', { size: 14, className: 'text-faint' }) %>+91 98765 43210</p>
+                      <p class="flex items-center gap-2.5"><%- icon('fileText', { size: 14, className: 'text-faint' }) %>Wants a demo for the placement team</p>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 border-t border-rule px-5 py-3.5">
+                      <span class="btn-secondary btn-sm"><%- icon('mail', { size: 14 }) %> Email</span>
+                      <span class="btn-primary btn-sm"><%- icon('phone', { size: 14 }) %> Call</span>
+                    </div>
+                  </div>
+                </div>
+
+                <%# Quick search that types by itself %>
+                <div class="absolute left-0 top-0 w-[252px]" data-depth="1">
+                  <div class="float rounded-xl bg-card p-2 shadow-pop" style="--float-duration: 7s; --float-delay: -1s">
+                    <div class="flex h-9 items-center gap-2 rounded-lg border border-accent px-2.5 text-[13px] ring-4 ring-accent/15">
+                      <%- icon('search', { size: 14, className: 'text-faint' }) %>
+                      <span class="font-medium" data-typing>Meera</span><span class="caret"></span>
+                      <span class="ml-auto flex gap-0.5"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">K</kbd></span>
+                    </div>
+                    <div class="search-result mt-1.5 flex items-center gap-2.5 rounded-lg bg-well/70 px-2 py-1.5" data-search-result>
+                      <span class="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-accent/10 text-[11px] font-bold text-accent" data-result-initials>MI</span>
+                      <span class="min-w-0">
+                        <span class="block truncate text-[13px] font-semibold" data-result-name>Meera Iyer</span>
+                        <span class="block truncate text-[11px] text-muted" data-result-meta>Stellar Edu · Recruiter</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <%# Toast that pops in now and then %>
+                <div class="absolute right-0 top-[34px]" data-depth="1.3">
+                  <div class="toast-pop flex items-center gap-2 rounded-xl bg-card px-3 py-2 text-[13px] font-semibold shadow-pop">
+                    <%- icon('star', { size: 15, fill: 'currentColor', className: 'text-manila' }) %> Added to favourites
+                  </div>
+                </div>
+
+                <%# Follow-up reminder %>
+                <div class="absolute right-0 top-[262px] w-[216px]" data-depth="0.9">
+                  <div class="float rounded-xl bg-card p-3 shadow-pop" style="--float-duration: 8s; --float-delay: -3s">
+                    <div class="flex items-center gap-2.5">
+                      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-manila/15 text-manila"><%- icon('calendarClock', { size: 17 }) %></span>
+                      <div class="min-w-0">
+                        <p class="text-[13px] font-bold">Follow up today</p>
+                        <p class="truncate text-[11px] text-muted">Call Meera about the demo</p>
+                      </div>
+                    </div>
+                    <div class="mt-2.5 flex items-center justify-between">
+                      <span class="inline-flex items-center gap-1.5 rounded-md bg-manila/15 px-2 py-0.5 text-[11px] font-semibold text-manila">
+                        <span class="pulse-dot text-manila"></span> Due 4:00 pm
+                      </span>
+                      <span class="text-[11px] font-semibold text-danger">1 overdue</span>
+                    </div>
+                  </div>
+                </div>
+
+                <%# Interaction timeline %>
+                <div class="absolute left-0 top-[338px] w-[246px]" data-depth="1.1">
+                  <div class="float rounded-xl bg-card p-3 shadow-pop" style="--float-duration: 10s; --float-delay: -5s">
+                    <p class="mb-2.5 flex items-center justify-between text-[11px] font-semibold text-muted">
+                      Timeline <span class="font-medium text-faint">Meera Iyer</span>
+                    </p>
+                    <ol class="relative space-y-3">
+                      <span class="absolute bottom-3 left-3.5 top-7 w-px bg-rule"></span>
+                      <li class="relative flex gap-2.5">
+                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent"><%- icon('phone', { size: 13 }) %></span>
+                        <div class="min-w-0">
+                          <p class="text-[12px]"><b class="font-bold">Call</b> <span class="text-muted">· just now</span></p>
+                          <p class="truncate text-[11px] text-muted">Shared the pricing deck</p>
+                        </div>
+                      </li>
+                      <li class="relative flex gap-2.5">
+                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-leaf/10 text-leaf"><%- icon('mail', { size: 13 }) %></span>
+                        <div class="min-w-0">
+                          <p class="text-[12px]"><b class="font-bold">Email</b> <span class="text-muted">· 2 days ago</span></p>
+                          <p class="truncate text-[11px] text-muted">Sent the campus brochure</p>
+                        </div>
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+
+                <%# CSV import in progress %>
+                <div class="absolute right-[18px] top-[422px] w-[236px]" data-depth="0.7">
+                  <div class="float rounded-xl bg-card p-3 shadow-pop" style="--float-duration: 9s; --float-delay: -2s">
+                    <div class="flex items-center gap-2.5">
+                      <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-leaf/10 text-leaf"><%- icon('fileText', { size: 15 }) %></span>
+                      <div class="min-w-0 flex-1">
+                        <p class="text-[12px] font-semibold">contacts.csv</p>
+                        <p class="relative h-4 text-[11px] text-muted">
+                          <span class="import-busy absolute inset-0">Importing 50 rows…</span>
+                          <span class="import-done absolute inset-0">48 imported · <span class="text-danger">2 skipped</span></span>
+                        </p>
+                      </div>
+                      <%- icon('checkCircle', { size: 16, className: 'import-done text-leaf' }) %>
+                    </div>
+                    <div class="mt-2.5 h-1.5 overflow-hidden rounded-full bg-well">
+                      <div class="import-bar h-full rounded-full bg-leaf"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <%# ================= Built with (marquee) ================= %>
+      <section class="border-y border-rule/70 bg-card/50 py-5" aria-label="Built with">
+        <div class="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 sm:flex-row sm:gap-6 sm:px-6">
+          <p class="shrink-0 text-[13px] font-semibold text-faint">Built with</p>
+          <div class="marquee w-full overflow-hidden">
+            <div class="marquee-track">
+              <% [false, true].forEach((isCopy) => { %>
+                <ul class="flex shrink-0"<%- isCopy ? ' aria-hidden="true"' : '' %>>
+                  <% stack.forEach((name) => { %>
+                    <li class="pr-3">
+                      <span class="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg border border-rule bg-card px-3 text-sm font-semibold text-muted">
+                        <span class="h-1.5 w-1.5 rounded-full bg-accent/60"></span><%= name %>
+                      </span>
+                    </li>
+                  <% }) %>
+                </ul>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <%# ================= Features ================= %>
+      <section id="features" class="px-4 py-24 sm:px-6 lg:py-32">
+        <% sectionHeading({
+          eyebrow: 'Features',
+          title: 'Everything a contact needs.',
+          text: 'Built around the way you actually keep in touch: find people fast, remember every conversation and never miss a follow-up.',
+        }) %>
+
+        <div class="mx-auto mt-14 grid max-w-6xl gap-4 md:grid-cols-2 lg:grid-cols-3" data-spotlight>
+          <% features.forEach((feature, index) => { %>
+            <div class="reveal <%= feature.wide ? 'lg:col-span-2' : '' %>" style="--i: <%= index % 3 %>">
+              <article class="feature panel relative flex h-full flex-col overflow-hidden p-6">
+                <span class="grid h-10 w-10 place-items-center rounded-xl bg-accent/10 text-accent"><%- icon(feature.icon, { size: 19 }) %></span>
+                <h3 class="mt-4 text-lg font-bold tracking-tight"><%= feature.title %></h3>
+                <p class="mt-1.5 text-[15px] leading-relaxed text-muted"><%= feature.text %></p>
+                <%# Small illustration per feature. Children of .stagger slide in one after another. %>
+                <div class="mt-auto">
+                  <% if (feature.visual === 'search') { %>
+                    <div class="mt-6 rounded-xl border border-rule bg-paper/70 p-3">
+                      <div class="flex h-9 items-center gap-2 rounded-lg border border-accent bg-card px-3 text-[13px] ring-4 ring-accent/15">
+                        <%- icon('search', { size: 14, className: 'text-faint' }) %>
+                        <span class="font-medium">sha</span><span class="caret"></span>
+                        <span class="ml-auto text-[11px] text-faint">3 contacts</span>
+                      </div>
+                      <ul class="stagger mt-2 divide-y divide-rule overflow-hidden rounded-lg border border-rule bg-card text-[13px]">
+                        <% [
+                          { first: 'Riya ', rest: 'rma', company: 'Northwind Traders', tag: 'client' },
+                          { first: 'Ananya ', rest: 'rma', company: 'Contoso', tag: 'vip' },
+                          { first: 'Karan ', rest: 'h', company: 'Infosys', tag: 'lead' },
+                        ].forEach((row, index) => { %>
+                          <li class="flex items-center gap-3 px-3 py-2" style="--i: <%= index %>">
+                            <%- avatar({ name: row.first + 'Sha' + row.rest, size: 'xs' }) %>
+                            <span class="flex-1 truncate font-semibold"><%= row.first %><mark class="rounded bg-manila/25 px-0.5 text-ink">Sha</mark><%= row.rest %></span>
+                            <span class="hidden text-muted sm:inline"><%= row.company %></span>
+                            <span class="chip"><span class="text-faint">#</span><%= row.tag %></span>
+                          </li>
+                        <% }) %>
+                      </ul>
+                    </div>
+
+                  <% } else if (feature.visual === 'timeline') { %>
+                    <ol class="stagger relative mt-6 space-y-3">
+                      <span class="absolute bottom-4 left-4 top-4 w-px bg-rule"></span>
+                      <% [
+                        { icon: 'phone', tint: 'bg-accent/10 text-accent', type: 'Call', when: 'Today', note: 'Agreed on a demo next week' },
+                        { icon: 'mail', tint: 'bg-leaf/10 text-leaf', type: 'Email', when: 'Mon', note: 'Sent the pricing deck' },
+                        { icon: 'meeting', tint: 'bg-manila/15 text-manila', type: 'Meeting', when: '12 Oct', note: 'Met at the campus fair' },
+                      ].forEach((item, index) => { %>
+                        <li class="relative flex gap-3" style="--i: <%= index %>">
+                          <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg <%= item.tint %>"><%- icon(item.icon, { size: 15 }) %></span>
+                          <div class="min-w-0 pt-0.5 text-[13px]">
+                            <p><b class="font-bold"><%= item.type %></b> <span class="text-muted">· <%= item.when %></span></p>
+                            <p class="truncate text-muted"><%= item.note %></p>
+                          </div>
+                        </li>
+                      <% }) %>
+                    </ol>
+
+                  <% } else if (feature.visual === 'followups') { %>
+                    <ul class="stagger mt-6 space-y-2 text-[13px]">
+                      <% [
+                        { name: 'Rohan Verma', status: 'Overdue · 2 days', tone: 'bg-danger/10 text-danger' },
+                        { name: 'Meera Iyer', status: 'Today', tone: 'bg-manila/15 text-manila' },
+                        { name: 'Arjun Reddy', status: 'In 3 days', tone: 'bg-well text-muted' },
+                      ].forEach((item, index) => { %>
+                        <li class="flex items-center gap-2.5 rounded-lg border border-rule bg-card px-2.5 py-2" style="--i: <%= index %>">
+                          <%- avatar({ name: item.name, size: 'xs' }) %>
+                          <span class="flex-1 truncate font-semibold"><%= item.name %></span>
+                          <span class="rounded-md px-2 py-0.5 text-[11px] font-semibold <%= item.tone %>"><%= item.status %></span>
+                        </li>
+                      <% }) %>
+                    </ul>
+
+                  <% } else if (feature.visual === 'import') { %>
+                    <div class="mt-6 rounded-xl border-2 border-dashed border-rule p-3 text-[13px]">
+                      <div class="flex items-center gap-2.5">
+                        <span class="grid h-8 w-8 place-items-center rounded-lg bg-leaf/10 text-leaf"><%- icon('fileText', { size: 15 }) %></span>
+                        <span class="flex-1 font-semibold">contacts.csv</span>
+                        <span class="text-[11px] text-faint">50 rows</span>
+                      </div>
+                      <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-well">
+                        <div class="fill-bar h-full rounded-full bg-leaf" style="width: 96%"></div>
+                      </div>
+                      <ul class="stagger mt-3 space-y-1 text-[12px]">
+                        <li class="flex items-center gap-1.5 font-semibold text-leaf" style="--i: 2"><%- icon('checkCircle', { size: 13 }) %> 48 imported</li>
+                        <li class="flex items-center gap-1.5 text-danger" style="--i: 3"><%- icon('alert', { size: 13 }) %> Line 7: email is not valid</li>
+                      </ul>
+                    </div>
+
+                  <% } else if (feature.visual === 'trash') { %>
+                    <div class="stagger mt-6 space-y-2 text-[13px]">
+                      <div class="flex items-center gap-2.5 rounded-lg border border-rule bg-card px-2.5 py-2 opacity-60" style="--i: 0">
+                        <%- avatar({ name: 'Ishita Kaur', size: 'xs' }) %>
+                        <span class="flex-1 truncate font-semibold line-through decoration-faint">Ishita Kaur</span>
+                        <%- icon('trash', { size: 14, className: 'text-faint' }) %>
+                      </div>
+                      <div class="flex items-center gap-2.5 rounded-xl bg-card px-3 py-2.5 shadow-pop" style="--i: 1">
+                        <%- icon('checkCircle', { size: 15, className: 'text-leaf' }) %>
+                        <span class="flex-1 truncate font-medium">Moved to trash</span>
+                        <span class="link">Undo</span>
+                      </div>
+                    </div>
+
+                  <% } else if (feature.visual === 'security') { %>
+                    <div class="mt-6 grid gap-3 sm:grid-cols-[1.4fr_1fr]">
+                      <div class="rounded-xl border border-rule bg-paper/70 p-3">
+                        <p class="text-[11px] font-semibold text-muted">Authorization: Bearer</p>
+                        <p class="token mt-1.5 break-all font-mono text-[12px] leading-relaxed">
+                          <span class="text-danger">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9</span>.<span class="text-accent">eyJzdWIiOiI0MiIsInJvbGUiOiJ1c2VyIn0</span>.<span class="text-leaf">SflKxwRJSMeKKF2QT4fwpMeJf36P…</span>
+                        </p>
+                        <p class="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                          <span class="chip font-mono"><span class="text-danger">●</span> header</span>
+                          <span class="chip font-mono"><span class="text-accent">●</span> { sub, role }</span>
+                          <span class="chip font-mono"><span class="text-leaf">●</span> signature</span>
+                        </p>
+                      </div>
+                      <ul class="stagger space-y-2 text-[12px]">
+                        <li class="flex items-center gap-2 rounded-lg border border-rule bg-card px-2.5 py-2" style="--i: 0">
+                          <%- icon('shield', { size: 14, className: 'text-leaf' }) %>
+                          <span class="truncate font-mono text-muted">$2b$10$N9qo8uLOickgx…</span>
+                        </li>
+                        <li class="flex items-center gap-2 rounded-lg border border-rule bg-card px-2.5 py-2" style="--i: 1">
+                          <span class="rounded bg-danger/10 px-1.5 font-mono font-bold text-danger">401</span>
+                          <span class="text-muted">No token, no data</span>
+                        </li>
+                        <li class="flex items-center gap-2 rounded-lg border border-rule bg-card px-2.5 py-2" style="--i: 2">
+                          <span class="rounded bg-manila/15 px-1.5 font-mono font-bold text-manila">403</span>
+                          <span class="text-muted">Admin pages for admins</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                  <% } else if (feature.visual === 'everywhere') { %>
+                    <div class="stagger mt-6 flex items-end gap-3">
+                      <div class="h-24 flex-1 rounded-xl border border-[#DFE4ED] bg-[#F4F6F9] p-2" style="--i: 0">
+                        <div class="h-2 w-10 rounded bg-[#18233D]"></div>
+                        <div class="mt-2 h-10 rounded-md border border-[#DFE4ED] bg-white"></div>
+                        <div class="mt-1.5 h-2 w-14 rounded bg-[#2F5BD3]"></div>
+                      </div>
+                      <div class="h-24 flex-1 rounded-xl border border-[#27324D] bg-[#0D1322] p-2" style="--i: 1">
+                        <div class="h-2 w-10 rounded bg-[#E6EAF3]"></div>
+                        <div class="mt-2 h-10 rounded-md border border-[#27324D] bg-[#151D31]"></div>
+                        <div class="mt-1.5 h-2 w-14 rounded bg-[#7898F5]"></div>
+                      </div>
+                      <div class="h-28 w-14 rounded-2xl border-2 border-ink/80 bg-card p-1.5" style="--i: 2">
+                        <div class="mx-auto h-1 w-4 rounded-full bg-ink/40"></div>
+                        <div class="mt-1.5 space-y-1">
+                          <div class="h-3 rounded bg-well"></div>
+                          <div class="h-3 rounded bg-well"></div>
+                          <div class="h-3 rounded bg-accent/30"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <p class="mt-3 flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
+                      <kbd class="kbd">Ctrl</kbd><kbd class="kbd">K</kbd> search
+                      <kbd class="kbd ml-2">N</kbd> new contact
+                      <kbd class="kbd ml-2">/</kbd> filter
+                    </p>
+                  <% } %>
+                </div>
+              </article>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+
+      <section id="how-it-works" class="border-y border-rule/70 bg-card/50 px-4 py-24 sm:px-6 lg:py-32">
+        <% sectionHeading({
+          eyebrow: 'How it works',
+          title: 'From first hello to follow-up in three steps.',
+        }) %>
+
+        <div class="reveal relative mx-auto mt-16 max-w-5xl">
+          <div class="connector absolute left-[16.6%] right-[16.6%] top-7 hidden h-px md:block" aria-hidden="true"></div>
+          <ol class="stagger relative grid gap-12 md:grid-cols-3 md:gap-8">
+            <% steps.forEach((step, index) => { %>
+              <li class="text-center" style="--i: <%= index * 2 %>">
+                <span class="relative mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-card text-accent shadow-pop">
+                  <%- icon(step.icon, { size: 22 }) %>
+                  <span class="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-ink text-[11px] font-bold text-paper"><%= index + 1 %></span>
+                </span>
+                <h3 class="mt-5 text-lg font-bold"><%= step.title %></h3>
+                <p class="mx-auto mt-2 max-w-xs leading-relaxed text-muted"><%= step.text %></p>
+              </li>
+            <% }) %>
+          </ol>
+        </div>
+      </section>
+
+      <section id="under-the-hood" class="relative overflow-hidden bg-navy px-4 py-24 text-white sm:px-6 lg:py-32 dark:border-b dark:border-rule">
+        <div class="hood-grid absolute inset-0" aria-hidden="true"></div>
+
+        <div class="relative">
+          <% sectionHeading({
+            eyebrow: 'Under the hood',
+            title: 'A real REST API, not a mock-up.',
+            text: 'Every click in the app is a fetch() call to an Express server. Each request passes the same chain of middleware before it touches any data.',
+            dark: true,
+          }) %>
+
+          <div class="mx-auto mt-16 grid max-w-6xl items-center gap-10 lg:grid-cols-2">
+            <ol class="reveal relative space-y-1" aria-label="The path of one request">
+              <span class="absolute bottom-6 left-[19px] top-6 w-px bg-white/10" aria-hidden="true"></span>
+              <% requestFlow.forEach((step, index) => { %>
+                <li class="relative flex items-center gap-4 rounded-xl py-2" style="--i: <%= index %>">
+                  <span class="flow-dot relative ml-2 grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border border-white/15" style="--i: <%= index %>">
+                    <span class="h-1.5 w-1.5 rounded-full bg-white/50"></span>
+                  </span>
+                  <code class="flow-label font-mono text-[14px] font-semibold" style="--i: <%= index %>"><%= step.label %></code>
+                  <span class="hidden truncate text-sm text-white/50 sm:inline"><%= step.note %></span>
+                </li>
+              <% }) %>
+            </ol>
+
+            <div class="reveal min-w-0" style="--i: 2">
+              <div class="overflow-hidden rounded-2xl border border-white/10 bg-[#0B1120] shadow-2xl">
+                <div class="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
+                  <span class="h-2.5 w-2.5 rounded-full bg-[#EF6E64]"></span>
+                  <span class="h-2.5 w-2.5 rounded-full bg-[#E8BA5C]"></span>
+                  <span class="h-2.5 w-2.5 rounded-full bg-[#4AC48C]"></span>
+                  <span class="ml-3 text-xs font-medium text-white/40">Terminal</span>
+                </div>
+                <div class="stagger overflow-x-auto p-5 font-mono text-[13px] leading-6 text-white/80">
+                  <div class="whitespace-pre" style="--i: 0"><span class="text-white/40">$</span> curl -H "Authorization: Bearer eyJhbGci…" \</div>
+                  <div class="whitespace-pre" style="--i: 1">    "localhost:5000/api/contacts?search=meera&amp;limit=1"</div>
+                  <div class="whitespace-pre" style="--i: 2"> </div>
+                  <div class="whitespace-pre" style="--i: 3">{</div>
+                  <div class="whitespace-pre" style="--i: 4">  <span class="text-[#9DB4F7]">"success"</span>: <span class="text-[#F0C674]">true</span>,</div>
+                  <div class="whitespace-pre" style="--i: 5">  <span class="text-[#9DB4F7]">"data"</span>: [{</div>
+                  <div class="whitespace-pre" style="--i: 6">    <span class="text-[#9DB4F7]">"firstName"</span>: <span class="text-[#7FD8AE]">"Meera"</span>,</div>
+                  <div class="whitespace-pre" style="--i: 7">    <span class="text-[#9DB4F7]">"company"</span>: <span class="text-[#7FD8AE]">"Stellar Edu"</span>,</div>
+                  <div class="whitespace-pre" style="--i: 8">    <span class="text-[#9DB4F7]">"tags"</span>: [<span class="text-[#7FD8AE]">"campus"</span>, <span class="text-[#7FD8AE]">"lead"</span>], <span class="text-white/40">…</span></div>
+                  <div class="whitespace-pre" style="--i: 9">  }],</div>
+                  <div class="whitespace-pre" style="--i: 10">  <span class="text-[#9DB4F7]">"pagination"</span>: { <span class="text-[#9DB4F7]">"page"</span>: <span class="text-[#F0C674]">1</span>, <span class="text-[#9DB4F7]">"total"</span>: <span class="text-[#F0C674]">1</span>, <span class="text-white/40">…</span> }</div>
+                  <div class="whitespace-pre" style="--i: 11">}<span class="caret"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <dl class="reveal mx-auto mt-16 grid max-w-5xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 md:grid-cols-4">
+            <% stats.forEach((stat) => { %>
+              <div class="flex flex-col-reverse bg-navy px-6 py-6 text-center">
+                <dt class="mt-1 text-sm text-white/55"><%= stat.label %></dt>
+                <dd class="text-4xl font-extrabold tabular-nums tracking-tight" data-count-to="<%= stat.value %>"><%= stat.value.toLocaleString('en-IN') %></dd>
+              </div>
+            <% }) %>
+          </dl>
+        </div>
+      </section>
+
+      <section id="faq" class="px-4 py-24 sm:px-6 lg:py-32">
+        <% sectionHeading({ eyebrow: 'FAQ', title: 'Questions, answered.' }) %>
+
+        <div class="mx-auto mt-12 max-w-3xl space-y-3">
+          <% faqs.forEach((faq, index) => { %>
+            <details class="faq reveal panel overflow-hidden" style="--i: <%= index %>"<%- index === 0 ? ' open' : '' %>>
+              <summary class="flex cursor-pointer items-center gap-4 px-5 py-4 text-left font-semibold transition-colors hover:bg-well/50">
+                <span class="flex-1"><%= faq.question %></span>
+                <span class="faq-chevron grid h-7 w-7 shrink-0 place-items-center rounded-full bg-well text-muted transition-[rotate] duration-300">
+                  <%- icon('chevronRight', { size: 16 }) %>
+                </span>
+              </summary>
+              <p class="faq-body px-5 pb-5 leading-relaxed text-muted"><%= faq.answer %></p>
+            </details>
+          <% }) %>
+        </div>
+      </section>
+
+      <section class="px-4 pb-24 sm:px-6 lg:pb-32" data-cta>
+        <div class="reveal relative mx-auto max-w-5xl">
+          <div class="pointer-events-none absolute inset-0 hidden sm:block" aria-hidden="true">
+            <span class="drift absolute -left-5 top-10 z-10" style="--drift-duration: 6s; --drift-rotate: -6deg">
+              <span class="chip h-8 bg-card px-3 text-sm shadow-pop"><span class="text-faint">#</span>vip</span>
+            </span>
+            <span class="drift absolute -right-4 top-8 z-10" style="--drift-duration: 7.5s; --drift-rotate: 8deg">
+              <span class="grid h-11 w-11 place-items-center rounded-xl bg-card text-manila shadow-pop"><%- icon('star', { size: 20, fill: 'currentColor' }) %></span>
+            </span>
+            <span class="drift absolute -left-3 bottom-12 z-10" style="--drift-duration: 8s; --drift-rotate: 5deg">
+              <span class="grid h-11 w-11 place-items-center rounded-xl bg-card text-accent shadow-pop"><%- icon('phone', { size: 19 }) %></span>
+            </span>
+            <span class="drift absolute -right-6 bottom-16 z-10" style="--drift-duration: 6.5s; --drift-rotate: -4deg">
+              <span class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-card px-3 text-[13px] font-semibold text-manila shadow-pop">
+                <%- icon('calendarClock', { size: 15 }) %> Follow up Friday
+              </span>
+            </span>
+          </div>
+
+          <div class="index-card ruled px-6 py-16 text-center shadow-pop sm:px-12">
+            <h2 class="text-3xl font-extrabold tracking-tight sm:text-5xl">Start your cardfile today.</h2>
+            <p class="mx-auto mt-4 max-w-lg text-lg text-muted">
+              Create an account in under a minute and add your first contact, or bring them all in from a spreadsheet.
+            </p>
+            <div class="mt-8 flex flex-wrap justify-center gap-3" data-when="guest">
+              <a href="/app#/signup" class="btn-primary btn-lg">Create free account <%- icon('chevronRight', { size: 18 }) %></a>
+              <a href="/app#/signin" class="btn-secondary btn-lg">I already have one</a>
+            </div>
+            <div class="mt-8 hidden flex justify-center" data-when="user">
+              <a href="/app#/contacts" class="btn-primary btn-lg">Go to my contacts <%- icon('chevronRight', { size: 18 }) %></a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t border-rule">
+      <%# Extra bottom padding on larger screens keeps the floating API status pill clear of this line %>
+      <p class="px-4 py-6 text-center text-sm text-muted sm:pb-16">Thank you © 2026</p>
+    </footer>
+
+    <div class="api-status fixed bottom-4 left-4 z-40 hidden items-center gap-2 rounded-full border border-rule bg-card/90 px-3 py-1.5 text-xs font-semibold text-muted shadow-pop backdrop-blur sm:flex"
+      role="status" data-api-status data-state="checking">
+      <span class="pulse-dot status-dot"></span><span data-api-text>Checking the API…</span>
+    </div>
+
+    <div class="floating-cta fixed bottom-4 right-4 z-40" data-floating-cta>
+      <div class="flex items-center gap-3 rounded-2xl border border-rule bg-card/95 py-2 pl-4 pr-2 shadow-pop backdrop-blur">
+        <span class="text-sm font-semibold" data-when="guest">Ready to try it?</span>
+        <span class="hidden text-sm font-semibold" data-when="user">Welcome back</span>
+        <a href="/app#/signup" class="btn-primary" data-when="guest">Get started</a>
+        <a href="/app#/contacts" class="btn-primary hidden" data-when="user"><%- icon('users', { size: 16 }) %> My contacts</a>
+      </div>
+    </div>
+
+    <script type="module" src="/js/home.js"></script>
+  </body>
+</html>
