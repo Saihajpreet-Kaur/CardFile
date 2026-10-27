@@ -1,0 +1,222 @@
+<%#
+  Shared <head> for every page: fonts, theme, Tailwind config and the design tokens.
+  Usage: include('partials/head', { title: '...', description: '...' })
+%>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="<%= description %>" />
+<title><%= title %></title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&display=swap"
+  rel="stylesheet"
+/>
+
+<script>
+  // Apply the saved theme before the first paint, so the page never flashes white
+  document.documentElement.classList.add('js');
+  try {
+    var theme = localStorage.getItem('cardfile-theme') || 'system';
+    var dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+    if (dark) document.documentElement.classList.add('dark');
+  } catch (e) {}
+</script>
+
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  // Colours are CSS variables (see :root below) so light and dark mode share one set of class names
+  const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          paper: token('paper'),
+          card: token('card'),
+          well: token('well'),
+          ink: token('ink'),
+          muted: token('muted'),
+          faint: token('faint'),
+          rule: token('rule'),
+          accent: token('accent'),
+          'accent-ink': token('accent-ink'),
+          danger: token('danger'),
+          manila: token('manila'),
+          leaf: token('leaf'),
+          navy: token('navy'),
+        },
+        fontFamily: {
+          sans: ['"Schibsted Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        },
+        boxShadow: {
+          lift: '0 1px 0 rgb(var(--rule)), 0 8px 24px -12px rgb(var(--shadow) / 0.25)',
+          pop: '0 12px 40px -8px rgb(var(--shadow) / 0.35), 0 0 0 1px rgb(var(--rule))',
+        },
+        keyframes: {
+          'slide-in': { from: { transform: 'translateY(8px)', opacity: 0 }, to: { transform: 'none', opacity: 1 } },
+          'fade-in': { from: { opacity: 0 }, to: { opacity: 1 } },
+          'deal-in': {
+            from: { transform: 'translateY(14px) rotate(-1.5deg)', opacity: 0 },
+            to: { transform: 'none', opacity: 1 },
+          },
+        },
+        animation: {
+          'slide-in': 'slide-in .18s ease-out',
+          'fade-in': 'fade-in .15s ease-out',
+          'deal-in': 'deal-in .45s cubic-bezier(.2,.8,.2,1) both',
+        },
+      },
+    },
+  };
+</script>
+
+<style type="text/tailwindcss">
+  /*
+   * Design tokens. The look borrows from a paper index card:
+   * navy ink, a blue ruled line and a red margin line across the top.
+   * Values are RGB channels so Tailwind can add opacity, e.g. bg-accent/10.
+   */
+  @layer base {
+    :root {
+      --paper: 244 246 249;
+      --card: 255 255 255;
+      --well: 237 240 245;
+      --ink: 24 35 61;
+      --muted: 84 96 122;
+      --faint: 138 149 171;
+      --rule: 223 228 237;
+      --accent: 47 91 211;
+      --accent-ink: 255 255 255;
+      --danger: 210 69 61;
+      --manila: 214 158 46;
+      --leaf: 31 139 91;
+      --navy: 24 35 61;
+      --shadow: 24 35 61;
+      --ruled-line: 47 91 211;
+      color-scheme: light;
+    }
+
+    .dark {
+      --paper: 13 19 34;
+      --card: 21 29 49;
+      --well: 27 37 61;
+      --ink: 230 234 243;
+      --muted: 160 171 194;
+      --faint: 112 124 150;
+      --rule: 39 50 77;
+      --accent: 120 152 245;
+      --accent-ink: 13 19 34;
+      --danger: 239 110 100;
+      --manila: 232 186 92;
+      --leaf: 74 196 140;
+      --navy: 17 24 42;
+      --shadow: 0 0 0;
+      --ruled-line: 120 152 245;
+      color-scheme: dark;
+    }
+
+    body {
+      @apply bg-paper text-ink font-sans antialiased;
+    }
+
+    ::selection {
+      @apply bg-accent/20;
+    }
+
+    :focus-visible {
+      outline: 2px solid rgb(var(--accent));
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    dialog::backdrop {
+      background: rgb(13 19 34 / 0.55);
+      backdrop-filter: blur(2px);
+    }
+
+    /* Looping animations play once and stop, instead of jittering at high speed */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  }
+
+  @layer components {
+    /* Buttons */
+    .btn {
+      @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 h-9 text-sm font-semibold whitespace-nowrap
+        transition-colors disabled:opacity-50 disabled:cursor-not-allowed select-none;
+    }
+    .btn-primary { @apply btn bg-accent text-accent-ink hover:bg-accent/90; }
+    .btn-secondary { @apply btn bg-card text-ink border border-rule hover:bg-well; }
+    .btn-ghost { @apply btn text-muted hover:text-ink hover:bg-well; }
+    .btn-danger { @apply btn bg-danger text-white hover:bg-danger/90; }
+    .btn-sm { @apply h-8 px-2.5 text-[13px] gap-1.5; }
+    .btn-lg { @apply h-12 px-5 text-[15px] rounded-xl; }
+    .btn-icon {
+      @apply inline-flex items-center justify-center rounded-lg h-9 w-9 text-muted hover:text-ink hover:bg-well transition-colors;
+    }
+
+    /* Form controls */
+    .field-label { @apply block text-[13px] font-semibold text-ink mb-1.5; }
+    .input {
+      @apply w-full h-10 rounded-lg border border-rule bg-card px-3 text-sm text-ink placeholder:text-faint
+        focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/15 transition;
+    }
+    .input-error { @apply border-danger focus:border-danger focus:ring-danger/15; }
+    textarea.input { @apply h-auto py-2.5 leading-relaxed; }
+    select.input { @apply pr-8; }
+    .field-error { @apply mt-1 text-[13px] text-danger empty:hidden; }
+    .field-hint { @apply mt-1 text-[13px] text-muted; }
+
+    /* Surfaces */
+    .panel { @apply bg-card border border-rule rounded-xl; }
+    .panel-title { @apply text-[15px] font-bold tracking-tight; }
+
+    /* Index card: red margin line on top, faint blue rules behind the body */
+    .index-card { @apply relative bg-card border border-rule rounded-xl overflow-hidden; }
+    .index-card::before { content: ''; @apply absolute inset-x-0 top-0 h-[3px] bg-danger; }
+    .ruled {
+      background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 31px,
+        rgb(var(--ruled-line) / 0.12) 31px,
+        rgb(var(--ruled-line) / 0.12) 32px
+      );
+    }
+
+    .chip { @apply inline-flex items-center gap-1 rounded-md bg-well px-1.5 py-0.5 text-xs font-medium text-muted; }
+    .kbd {
+      @apply inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded border border-rule bg-well text-[11px] font-semibold text-muted;
+    }
+    .link { @apply text-accent font-semibold hover:underline underline-offset-2; }
+
+    /* Segmented control (All / Favourites / Recent ...) */
+    .segmented { @apply inline-flex items-center gap-0.5 rounded-lg bg-well p-1; }
+    .segment { @apply h-8 px-3 rounded-md text-sm font-semibold text-muted hover:text-ink transition-colors; }
+    .segment[aria-pressed='true'] { @apply bg-card text-ink shadow-sm; }
+
+    /* Sidebar links: the active one becomes a tab that joins the page, like a pulled index card */
+    .nav-link {
+      @apply relative flex items-center gap-3 h-10 px-3 text-[14px] font-semibold rounded-xl transition-colors
+        text-white/70 hover:text-white hover:bg-white/[0.06];
+    }
+    .nav-link[aria-current='page'] { @apply bg-paper text-ink rounded-r-none -mr-3 lg:-mr-4 pr-6 hover:bg-paper hover:text-ink; }
+
+    .menu-panel { @apply absolute right-0 z-50 mt-2 min-w-[12rem] rounded-xl bg-card p-1.5 shadow-pop animate-slide-in; }
+    .menu-item {
+      @apply flex w-full items-center gap-2.5 rounded-lg px-2.5 h-9 text-sm font-medium text-ink hover:bg-well text-left;
+    }
+
+    .skeleton { @apply animate-pulse rounded bg-well; }
+
+    .scroll-thin { scrollbar-width: thin; scrollbar-color: rgb(var(--rule)) transparent; }
+  }
+</style>
