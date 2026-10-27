@@ -6,8 +6,6 @@ import {
   deleteInteractionRules,
   listInteractionsRules,
 } from '../validators/interaction.validator.js';
-
-// Mounted at /api/contacts/:id/interactions - mergeParams gives access to :id
 const router = Router({ mergeParams: true });
 
 router
