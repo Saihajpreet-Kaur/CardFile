@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-/** Counts from 0 up to `target` with an ease-out curve - used for the dashboard numbers. */
+/** Counts from 0 up to `target` with an ease-out curve - used to animate the dashboard numbers. */
 export function useCountUp(target, duration = 900) {
   const [value, setValue] = useState(0);
 
