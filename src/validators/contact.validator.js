@@ -8,7 +8,7 @@ import {
 } from '../constants/index.js';
 import { normalizePhone, normalizeTags, stripTags } from '../utils/sanitize.js';
 
-export const contactIdRule = param('id').isUUID().withMessage('Invalid contact id');
+export const contactIdRule = param('id').isMongoId().withMessage('Invalid contact id');
 
 const optionalText = (field, max) =>
   body(field)
@@ -20,6 +20,10 @@ const optionalText = (field, max) =>
     .isLength({ max })
     .withMessage(`${field} must be at most ${max} characters`);
 
+/**
+ * Shared field rules. "firstName" is required on create and optional on update;
+ * every other field may be sent as "" to clear it.
+ */
 const contactFieldRules = ({ isUpdate }) => [
   (isUpdate ? body('firstName').optional() : body('firstName'))
     .isString()
@@ -96,6 +100,7 @@ const filterRules = [
     .isBoolean()
     .withMessage('favourite must be true or false')
     .toBoolean(),
+  query('list').optional({ values: 'falsy' }).isMongoId().withMessage('list must be a valid list id'),
   query('status')
     .optional()
     .isIn(Object.values(CONTACT_STATUS))
@@ -105,4 +110,5 @@ const filterRules = [
 /** ?page=1&limit=10&sort=-createdAt&search=&tag=&company=&favourite=true&status=active */
 export const listContactsRules = [...paginationRules, ...filterRules];
 
+/** Same filters as the list, without pagination ("export the current view"). */
 export const exportContactsRules = filterRules;
