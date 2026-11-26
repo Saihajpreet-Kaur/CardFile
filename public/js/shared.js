@@ -1,3 +1,8 @@
+/*
+ * Helpers shared by the browser app and the server (src/app.js uses icon, avatar and logo
+ * to render the EJS pages): DOM/formatting helpers, SVG icons, avatar and logo markup.
+ */
+
 // ---------- dom ----------
 
 /* Small DOM and formatting helpers shared by every page. */
