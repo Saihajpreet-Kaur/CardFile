@@ -63,8 +63,13 @@ export async function importContacts(req, res) {
   res.status(report.imported > 0 ? 201 : 200).json({ success: true, message, data: report });
 }
 
+export async function getTags(req, res) {
+  const tags = await contactService.getTags(req.user.id);
+  res.json({ success: true, data: tags });
+}
+
 export async function exportContacts(req, res) {
-  const contacts = await contactService.findContactsForExport(req.user.id, validQuery(req));
+  const contacts = await contactService.streamContactsForExport(req.user.id, validQuery(req));
   const fileName = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
