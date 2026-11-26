@@ -29,7 +29,7 @@ function useListParams() {
     (changes) => {
       const current = Object.fromEntries(Object.keys(DEFAULTS).map((key) => [key, searchParams.get(key) ?? DEFAULTS[key]]));
       const next = { ...current, ...changes };
-      // Any filter change starts again from page 1
+      // Any filter change sends the user back to page 1
       if (!('page' in changes)) next.page = '1';
       const entries = Object.entries(next).filter(([key, value]) => value !== DEFAULTS[key] && value !== '');
       setSearchParams(Object.fromEntries(entries), { replace: 'search' in changes });
