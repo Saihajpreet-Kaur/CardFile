@@ -7,6 +7,10 @@ import {
   stripTags,
 } from '../utils/sanitize.js';
 
+/**
+ * Validates one CSV row with the same rules the JSON API uses.
+ * Returns { contact, errors } - errors is an empty array when the row is valid.
+ */
 export function validateContactRow(row) {
   const contact = {
     firstName: stripTags(row.firstName ?? ''),
