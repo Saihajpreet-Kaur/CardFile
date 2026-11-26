@@ -6,7 +6,10 @@ node_modules/
 .env.*
 !.env.example
 
-# Runtime data (JSON store, uploaded files, logs)
+# React build output (created by "npm run build")
+client/dist/
+
+# Runtime data (local MongoDB, uploaded files, logs)
 storage/
 uploads/
 logs/
