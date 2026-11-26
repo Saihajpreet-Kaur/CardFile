@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { useApi } from '../hooks/useApi';
 import { formatDate, fullName } from '../utils/format';
 
+/** Trash page: restore soft-deleted contacts or delete them forever. */
 export default function Trash() {
   const toast = useToast();
   const [page, setPage] = useState(1);
