@@ -1,11 +1,23 @@
-
+/**
+ * Clears the database and fills it with demo data.
+ *
+ *   npm run seed            (uses MONGO_URI from .env)
+ *
+ * The same function is used by scripts/dev-local.js to fill a fresh local database.
+ */
+import { pathToFileURL } from 'node:url';
+import mongoose from 'mongoose';
 import { ROLES } from '../src/constants/index.js';
+import { connectDB, disconnectDB } from '../src/config/db.js';
+import Contact from '../src/models/Contact.js';
 import * as userRepository from '../src/repositories/user.repository.js';
 import * as contactRepository from '../src/repositories/contact.repository.js';
 import * as interactionRepository from '../src/repositories/interaction.repository.js';
+import * as listRepository from '../src/repositories/list.repository.js';
 import { hashPassword } from '../src/services/auth.service.js';
 import { createContact } from '../src/services/contact.service.js';
 import { addInteraction } from '../src/services/interaction.service.js';
+import { changeMembers, createList } from '../src/services/list.service.js';
 import logger from '../src/utils/logger.js';
 
 const ACCOUNTS = [
@@ -38,8 +50,17 @@ const SAMPLE_CONTACTS = [
   { firstName: 'Nisha', lastName: 'Bansal', email: 'nisha.bansal@chitkara.example', company: 'Chitkara University', designation: 'Placement Officer', tags: ['college'] },
 ];
 
-async function seed() {
-  await Promise.all([userRepository.clear(), contactRepository.clear(), interactionRepository.clear()]);
+const day = 86_400_000;
+const daysAgo = (days) => new Date(Date.now() - days * day);
+const daysAhead = (days) => new Date(Date.now() + days * day);
+
+export async function seedDatabase() {
+  await Promise.all([
+    userRepository.clear(),
+    contactRepository.clear(),
+    interactionRepository.clear(),
+    listRepository.clear(),
+  ]);
 
   const users = [];
   for (const { password, ...account } of ACCOUNTS) {
@@ -51,19 +72,45 @@ async function seed() {
   for (const sample of SAMPLE_CONTACTS) {
     contacts.push(await createContact(demoUser.id, sample));
   }
+  // Spread creation dates over the last months so the dashboard chart has data
+  const spread = [0, 3, 8, 15, 25, 33, 40, 52, 64, 80, 95, 120];
+  // createdAt is immutable in Mongoose, so the demo dates are written to the collection directly
+  await Promise.all(
+    contacts.map((contact, i) =>
+      Contact.collection.updateOne(
+        { _id: new mongoose.Types.ObjectId(contact.id) },
+        { $set: { createdAt: daysAgo(spread[i]) } },
+      ),
+    ),
+  );
 
-  const daysAgo = (days) => new Date(Date.now() - days * 86_400_000).toISOString();
-  const daysAhead = (days) => new Date(Date.now() + days * 86_400_000).toISOString();
+  const clients = await createList(demoUser.id, { name: 'Key clients', color: 'blue', description: 'Accounts we work with' });
+  const hiring = await createList(demoUser.id, { name: 'Hiring network', color: 'green' });
+  await changeMembers(demoUser.id, clients.id, { action: 'add', contactIds: [contacts[0].id, contacts[3].id, contacts[6].id] });
+  await changeMembers(demoUser.id, hiring.id, { action: 'add', contactIds: [contacts[1].id, contacts[11].id] });
 
-  await addInteraction(demoUser.id, contacts[0].id, { type: 'meeting', note: 'Kick-off meeting for the new project.', date: daysAgo(6), followUpDate: daysAhead(2) });
-  await addInteraction(demoUser.id, contacts[0].id, { type: 'email', note: 'Sent the proposal document.', date: daysAgo(2) });
-  await addInteraction(demoUser.id, contacts[2].id, { type: 'call', note: 'Discussed pricing, wants a demo next week.', date: daysAgo(1), followUpDate: daysAhead(5) });
+  const interactions = [
+    [0, { type: 'meeting', note: 'Kick-off meeting for the new project.', date: daysAgo(6), followUpDate: daysAhead(2) }],
+    [0, { type: 'email', note: 'Sent the proposal document.', date: daysAgo(2) }],
+    [2, { type: 'call', note: 'Discussed pricing, wants a demo next week.', date: daysAgo(1), followUpDate: daysAhead(5) }],
+    [5, { type: 'call', note: 'Asked for the API documentation.', date: daysAgo(4), followUpDate: daysAgo(1) }],
+    [11, { type: 'meeting', note: 'Campus placement drive planning.', date: daysAgo(3), followUpDate: new Date() }],
+  ];
+  for (const [index, data] of interactions) await addInteraction(demoUser.id, contacts[index].id, data);
 
-  logger.info(`Seeded ${users.length} users, ${contacts.length} contacts and 3 interactions`);
+  logger.info(`Seeded ${users.length} users, ${contacts.length} contacts, 2 lists and ${interactions.length} interactions`);
   for (const { email, role } of ACCOUNTS) logger.info(`  ${role.padEnd(5)} -> ${email} (password from .env)`);
 }
 
-seed().catch((error) => {
-  logger.error('Seeding failed', error);
-  process.exit(1);
-});
+// Run directly with "npm run seed"
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    await connectDB();
+    await seedDatabase();
+  } catch (error) {
+    logger.error('Seeding failed', error);
+    process.exitCode = 1;
+  } finally {
+    await disconnectDB();
+  }
+}
