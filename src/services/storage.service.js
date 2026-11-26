@@ -7,7 +7,13 @@ import { ALLOWED_IMAGE_MIME_TYPES } from '../constants/index.js';
 import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
 
-
+/**
+ * Cloud storage for contact photos.
+ *
+ * Free hosts (Render, Railway...) have ephemeral disks that are wiped on every redeploy,
+ * so uploaded files must live in cloud storage. The local "uploads" folder is only a
+ * fallback for development when Cloudinary keys are not configured.
+ */
 if (config.cloudinary.enabled) {
   cloudinary.config({
     cloud_name: config.cloudinary.cloudName,
@@ -36,6 +42,7 @@ async function saveToLocalDisk(buffer, mimetype) {
   return `/uploads/${fileName}`;
 }
 
+/** Stores an image (from multer memory storage) and returns its public URL. */
 export async function uploadImage({ buffer, mimetype }) {
   if (config.cloudinary.enabled) return uploadToCloudinary(buffer);
 
