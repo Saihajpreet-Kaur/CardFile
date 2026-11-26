@@ -1,5 +1,5 @@
-import { body, param } from 'express-validator';
-import { INTERACTION_TYPES } from '../constants/index.js';
+import { body, param, query } from 'express-validator';
+import { FOLLOW_UP_STATUS, INTERACTION_TYPES } from '../constants/index.js';
 import { stripTags } from '../utils/sanitize.js';
 import { contactIdRule } from './contact.validator.js';
 
@@ -31,7 +31,19 @@ export const createInteractionRules = [
     .customSanitizer(toIsoDate),
 ];
 
-export const deleteInteractionRules = [
+const interactionIdRule = param('interactionId').isMongoId().withMessage('Invalid interaction id');
+
+export const deleteInteractionRules = [contactIdRule, interactionIdRule];
+
+export const followUpDoneRules = [
   contactIdRule,
-  param('interactionId').isUUID().withMessage('Invalid interaction id'),
+  interactionIdRule,
+  body('done').optional().isBoolean().withMessage('done must be true or false').toBoolean(),
+];
+
+export const listFollowUpsRules = [
+  query('status')
+    .optional()
+    .isIn(FOLLOW_UP_STATUS)
+    .withMessage(`status must be one of: ${FOLLOW_UP_STATUS.join(', ')}`),
 ];
