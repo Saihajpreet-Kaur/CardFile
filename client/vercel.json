@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "redirects": [{ "source": "/", "destination": "/app/", "permanent": false }],
+  "rewrites": [
+    { "source": "/app/assets/:file*", "destination": "/assets/:file*" },
+    { "source": "/app/favicon.svg", "destination": "/favicon.svg" },
+    { "source": "/app/:path*", "destination": "/index.html" }
+  ]
+}
