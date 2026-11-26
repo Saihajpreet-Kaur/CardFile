@@ -1,0 +1,264 @@
+@import 'tailwindcss';
+
+/* Design tokens - the same palette and font as the server-rendered home page */
+@theme {
+  --font-sans: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --color-paper: #f4f6f9;
+  --color-ink: #18233d;
+  --color-muted: #54607a;
+  --color-faint: #8a95ab;
+  --color-rule: #dfe4ed;
+  --color-brand-50: #eef3fd;
+  --color-brand-100: #dbe6fb;
+  --color-brand-200: #b9cdf6;
+  --color-brand-400: #6a8fe6;
+  --color-brand-500: #4a73e0;
+  --color-brand-600: #2f5bd3;
+  --color-brand-700: #2449ad;
+  --color-manila: #d69e2e;
+  --color-leaf: #1f8b5b;
+  --color-danger: #d2453d;
+  --color-navy: #18233d;
+
+  --animate-rise: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop: pop 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+@keyframes drift {
+  to {
+    transform: translate3d(60px, 40px, 0) scale(1.15);
+  }
+}
+@keyframes drift-reverse {
+  to {
+    transform: translate3d(-70px, -30px, 0) scale(1.1);
+  }
+}
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+  }
+  body {
+    @apply font-sans text-ink antialiased;
+  }
+  ::selection {
+    @apply bg-brand-600/20;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Animated background: ruled grid, drifting colour glows and a        */
+/* spotlight that follows the mouse (--mx / --my set in usePointerFx)  */
+/* ------------------------------------------------------------------ */
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.backdrop-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgb(24 35 61 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(24 35 61 / 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 30%, transparent 80%);
+}
+.glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.55;
+}
+.glow-blue {
+  top: -12rem;
+  right: -8rem;
+  width: 34rem;
+  height: 34rem;
+  background: #9db7f3;
+  animation: drift 18s ease-in-out infinite alternate;
+}
+.glow-amber {
+  bottom: -14rem;
+  left: 10%;
+  width: 30rem;
+  height: 30rem;
+  background: #f3d79c;
+  animation: drift-reverse 22s ease-in-out infinite alternate;
+}
+.glow-green {
+  top: 35%;
+  left: -12rem;
+  width: 24rem;
+  height: 24rem;
+  background: #a7e3c6;
+  opacity: 0.4;
+  animation: drift 26s ease-in-out infinite alternate;
+}
+.backdrop-spotlight {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(520px circle at var(--mx, 70%) var(--my, -10%), rgb(47 91 211 / 0.09), transparent 45%);
+  transition: background 0.2s;
+}
+
+/* Dark sidebar with its own soft glow */
+.sidebar {
+  background:
+    radial-gradient(circle at 20% 0%, rgb(47 91 211 / 0.45), transparent 45%),
+    radial-gradient(circle at 100% 100%, rgb(210 69 61 / 0.18), transparent 40%),
+    var(--color-navy);
+}
+
+/* Reusable component styles (used like CSS classes in the JSX) */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition duration-200 focus:outline-none focus-visible:ring-4 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply bg-brand-600 text-white shadow-[0_6px_18px_-6px_rgb(47_91_211/0.6)] hover:-translate-y-px hover:bg-brand-700 hover:shadow-[0_10px_24px_-8px_rgb(47_91_211/0.7)] focus-visible:ring-brand-100;
+  }
+  .btn-secondary {
+    @apply border border-rule bg-white/80 text-ink backdrop-blur hover:-translate-y-px hover:border-brand-200 hover:bg-white focus-visible:ring-brand-100;
+  }
+  .btn-danger {
+    @apply bg-danger text-white shadow-[0_6px_18px_-6px_rgb(210_69_61/0.55)] hover:-translate-y-px hover:brightness-95 focus-visible:ring-red-100;
+  }
+  .btn-ghost {
+    @apply text-muted hover:bg-brand-50 hover:text-brand-700;
+  }
+  .icon-btn {
+    @apply inline-flex size-9 items-center justify-center rounded-xl text-muted transition hover:bg-brand-50 hover:text-brand-700 active:scale-90;
+  }
+
+  /* Glass card on top of the animated background */
+  .card {
+    @apply rounded-2xl border border-white/70 bg-white/75 shadow-[0_1px_0_rgb(223_228_237),0_12px_32px_-18px_rgb(24_35_61/0.35)] backdrop-blur-xl;
+  }
+
+  /* Interactive card: lifts on hover and shows a spotlight under the mouse (--x / --y) */
+  .spot {
+    @apply relative isolate transition duration-300 hover:-translate-y-1 hover:shadow-[0_1px_0_rgb(223_228_237),0_22px_44px_-20px_rgb(24_35_61/0.45)];
+  }
+  .spot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(300px circle at var(--x, 50%) var(--y, 0%), rgb(47 91 211 / 0.12), transparent 50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .spot:hover::before {
+    opacity: 1;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-semibold text-ink;
+  }
+  .input {
+    @apply w-full rounded-xl border border-rule bg-white/90 px-3.5 py-2.5 text-sm outline-none transition placeholder:text-faint hover:border-brand-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-100;
+  }
+  .input-error {
+    @apply border-danger focus:border-danger focus:ring-red-100;
+  }
+  .field-error {
+    @apply mt-1.5 text-xs font-medium text-danger;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700 transition;
+  }
+  .th {
+    @apply px-4 py-3 text-left text-[11px] font-bold tracking-wider text-faint uppercase;
+  }
+  .td {
+    @apply px-4 py-3.5 text-sm;
+  }
+
+  /* Children rise into place one after another when a page opens */
+  .stagger > * {
+    animation: var(--animate-rise);
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .stagger > *:nth-child(4) {
+    animation-delay: 180ms;
+  }
+  .stagger > *:nth-child(5) {
+    animation-delay: 240ms;
+  }
+  .stagger > *:nth-child(n + 6) {
+    animation-delay: 300ms;
+  }
+
+  .grow-y {
+    transform-origin: bottom;
+    animation: grow-y 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .grow-x {
+    transform-origin: left;
+    animation: grow-x 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  /* Loading placeholder rows */
+  .skeleton {
+    @apply rounded-md;
+    background: linear-gradient(90deg, #e8ecf3 0%, #f4f6fa 50%, #e8ecf3 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.3s linear infinite;
+  }
+
+  .row-hover {
+    @apply transition-colors hover:bg-brand-50/60;
+  }
+}
+
+/* Respect "reduce motion" in the operating system settings */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
