@@ -1,7 +1,6 @@
 import config from '../config/index.js';
 import { CONTACT_STATUS, PAGINATION, RECENTLY_VIEWED_LIMIT } from '../constants/index.js';
 import * as contactRepository from '../repositories/contact.repository.js';
-import * as interactionRepository from '../repositories/interaction.repository.js';
 import { validateContactRow } from '../validators/contactRow.validator.js';
 import AppError from '../utils/AppError.js';
 import { omitUndefined } from '../utils/sanitize.js';
@@ -93,6 +92,7 @@ function buildListQuery(query) {
       tag: query.tag || undefined,
       company: query.company || undefined,
       favourite: query.favourite,
+      list: query.list || undefined,
     },
     options: {
       sort: query.sort ?? '-createdAt',
@@ -107,25 +107,33 @@ export function listContacts(userId, query) {
   return contactRepository.findPaginated(userId, filters, options);
 }
 
-/** Same filters as the list, without pagination - "export the current view". */
-export async function findContactsForExport(userId, query) {
+/**
+ * Same filters as the list, without pagination - "export the current view".
+ * Returns a MongoDB cursor so the CSV can be streamed row by row.
+ */
+export async function streamContactsForExport(userId, query) {
   const { filters, options } = buildListQuery(query);
-  const contacts = await contactRepository.findAllMatching(userId, filters, options);
+  const count = await contactRepository.countMatching(userId, filters);
 
-  emitActivity(ACTIVITY.CONTACTS_EXPORTED, { userId, count: contacts.length });
-  return contacts;
+  emitActivity(ACTIVITY.CONTACTS_EXPORTED, { userId, count });
+  return contactRepository.streamMatching(userId, filters, options);
+}
+
+export function getTags(userId) {
+  return contactRepository.findTags(userId);
 }
 
 export function getRecentlyViewed(userId) {
   return contactRepository.findRecentlyViewed(userId, RECENTLY_VIEWED_LIMIT);
 }
 
-/** Returns one contact and records the view for the "recently viewed" list. */
+/** Returns one contact (with its lists) and records the view for the "recently viewed" list. */
 export async function getContact(userId, contactId) {
   const contact = await findOwnedContact(userId, contactId);
-  if (contact.isDeleted) return contact;
-
-  return contactRepository.updateById(contactId, { lastViewedAt: new Date().toISOString() });
+  if (!contact.isDeleted) {
+    await contactRepository.updateById(contactId, { lastViewedAt: new Date() });
+  }
+  return contactRepository.findByIdWithLists(contactId, userId);
 }
 
 /* ------------------------------------------------------------------ */
@@ -173,7 +181,7 @@ export async function moveToTrash(userId, contactId) {
 
   const contact = await contactRepository.updateById(contactId, {
     isDeleted: true,
-    deletedAt: new Date().toISOString(),
+    deletedAt: new Date(),
   });
   emitActivity(ACTIVITY.CONTACT_DELETED, { userId, contactId });
   return contact;
@@ -191,7 +199,10 @@ export async function restoreContact(userId, contactId) {
   return restored;
 }
 
-/** Hard delete: only allowed from trash, and removes the contact's interactions too. */
+/**
+ * Hard delete: only allowed from trash. The Contact model's findOneAndDelete
+ * middleware removes the contact's interactions too.
+ */
 export async function deletePermanently(userId, contactId) {
   const contact = await findOwnedContact(userId, contactId);
   if (!contact.isDeleted) {
@@ -199,7 +210,6 @@ export async function deletePermanently(userId, contactId) {
   }
 
   await contactRepository.deleteById(contactId);
-  await interactionRepository.deleteByContact(contactId);
   emitActivity(ACTIVITY.CONTACT_PURGED, { userId, contactId });
 }
 
@@ -217,7 +227,7 @@ export async function importContacts(userId, file) {
     );
   }
 
-  const existing = await contactRepository.findAllForUser(userId);
+  const existing = await contactRepository.findContactKeys(userId);
   const knownEmails = new Set(existing.map((contact) => contact.email).filter(Boolean));
   const knownPhones = new Set(existing.map((contact) => contact.phone).filter(Boolean));
 
