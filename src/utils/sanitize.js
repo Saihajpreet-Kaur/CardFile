@@ -28,6 +28,9 @@ export const normalizeTags = (value) => {
   return [...new Set(tags)];
 };
 
+/** Makes user text safe to use inside a RegExp: "a.b+" matches the literal text "a.b+". */
+export const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /** Returns a copy of the object without keys whose value is undefined. */
 export const omitUndefined = (object) =>
   Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined));
