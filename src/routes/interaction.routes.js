@@ -4,8 +4,11 @@ import { validate } from '../middlewares/validate.middleware.js';
 import {
   createInteractionRules,
   deleteInteractionRules,
+  followUpDoneRules,
   listInteractionsRules,
 } from '../validators/interaction.validator.js';
+
+// Mounted at /api/contacts/:id/interactions - mergeParams gives access to :id
 const router = Router({ mergeParams: true });
 
 router
@@ -18,6 +21,13 @@ router.delete(
   deleteInteractionRules,
   validate,
   interactionController.deleteInteraction,
+);
+
+router.patch(
+  '/:interactionId/follow-up',
+  followUpDoneRules,
+  validate,
+  interactionController.setFollowUpDone,
 );
 
 export default router;
