@@ -130,7 +130,7 @@ function DetailRow({ icon: Icon, label, children }) {
 }
 
 export default function ContactDetail() {
-  const { id } = useParams(); // route parameter from /contacts/:id
+  const { id } = useParams(); // the :id part of the /contacts/:id route
   const navigate = useNavigate();
   const toast = useToast();
 
