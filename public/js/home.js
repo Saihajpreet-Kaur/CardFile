@@ -1,8 +1,4 @@
-/*
- * Behaviour for the public home page (views/home.ejs).
- * The server already sends the complete HTML (SSR); this script only adds motion
- * and a few live touches. Everything still reads fine if it never runs.
- */
+
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -11,35 +7,26 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const finePointer = matchMedia('(pointer: fine)').matches;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const THEME_KEY = 'cardfile-theme'; // shared with the app (core.js)
-const TOKEN_KEY = 'crm_token'; // shared with the app (core.js)
+const THEME_KEY = 'cardfile-theme'; 
+const TOKEN_KEY = 'crm_token'; 
 
 function readStorage(key) {
   try {
     return localStorage.getItem(key);
   } catch {
-    return null; // storage blocked (private mode, strict settings)
+    return null;
   }
 }
-
-/* ------------------------------------------------------------------ */
-/* Signed in? Swap "Get started" for "My contacts"                     */
-/* ------------------------------------------------------------------ */
 
 const signedIn = Boolean(readStorage(TOKEN_KEY));
 for (const element of $$('[data-when="guest"]')) element.classList.toggle('hidden', signedIn);
 for (const element of $$('[data-when="user"]')) element.classList.toggle('hidden', !signedIn);
-
-/* ------------------------------------------------------------------ */
-/* Theme toggle and mobile menu                                        */
-/* ------------------------------------------------------------------ */
 
 $('[data-theme-toggle]').addEventListener('click', () => {
   const dark = document.documentElement.classList.toggle('dark');
   try {
     localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
   } catch {
-    /* the theme still applies until the page is reloaded */
   }
 });
 
@@ -54,9 +41,6 @@ mobileMenu.addEventListener('click', (event) => {
   if (event.target.closest('a')) setMenu(false);
 });
 
-/* ------------------------------------------------------------------ */
-/* Scroll: header background, progress bar, floating call to action   */
-/* ------------------------------------------------------------------ */
 
 const header = $('[data-header]');
 const progress = $('[data-progress]');
@@ -73,7 +57,6 @@ function onScroll() {
   header.toggleAttribute('data-scrolled', y > 8);
   progress.style.transform = `scaleX(${maxScroll > 0 ? y / maxScroll : 0})`;
 
-  // Show the floating button after the hero, and hide it again once the big call to action is on screen
   const pastHero = y > hero.offsetHeight - 120;
   const ctaInView = ctaSection.getBoundingClientRect().top < window.innerHeight - 80;
   floatingCta.toggleAttribute('data-show', pastHero && !ctaInView);
@@ -89,10 +72,6 @@ window.addEventListener(
   { passive: true },
 );
 onScroll();
-
-/* ------------------------------------------------------------------ */
-/* Reveal sections and count numbers up as they scroll into view       */
-/* ------------------------------------------------------------------ */
 
 const whenVisible = new Map();
 const observer =
@@ -174,10 +153,6 @@ if (stage && finePointer && !reduceMotion) {
   hero.addEventListener('pointerleave', () => move(0, 0));
 }
 
-/* ------------------------------------------------------------------ */
-/* Hero: the quick-search widget types by itself                       */
-/* ------------------------------------------------------------------ */
-
 const SEARCHES = [
   { term: 'Meera', initials: 'MI', name: 'Meera Iyer', meta: 'Stellar Edu · Recruiter' },
   { term: 'infosys', initials: 'KS', name: 'Karan Shah', meta: 'Infosys · Engineering Manager' },
@@ -197,7 +172,7 @@ async function runTypingDemo() {
     result.removeAttribute('data-hidden');
   };
 
-  await sleep(2600); // let the first search sit for a moment after the page loads
+  await sleep(2600);
 
   for (let index = 1; ; index = (index + 1) % SEARCHES.length) {
     result.setAttribute('data-hidden', '');
@@ -220,10 +195,6 @@ async function runTypingDemo() {
 
 if (!reduceMotion) runTypingDemo();
 
-/* ------------------------------------------------------------------ */
-/* Feature cards: a soft spotlight follows the mouse                   */
-/* ------------------------------------------------------------------ */
-
 $('[data-spotlight]')?.addEventListener('pointermove', (event) => {
   const card = event.target.closest('.feature');
   if (!card) return;
@@ -232,9 +203,6 @@ $('[data-spotlight]')?.addEventListener('pointermove', (event) => {
   card.style.setProperty('--y', `${event.clientY - rect.top}px`);
 });
 
-/* ------------------------------------------------------------------ */
-/* Floating status pill: a real request to GET /api/health            */
-/* ------------------------------------------------------------------ */
 
 const apiStatus = $('[data-api-status]');
 
