@@ -1,5 +1,10 @@
 import config from '../config/index.js';
 
+/*
+ * Text for the public home page. page.controller passes it to views/home.ejs,
+ * which loops over these arrays on the server (server-side rendering).
+ * Limits are read from config, so the page always matches what the API enforces.
+ */
 
 const maxImportRows = config.uploads.maxImportRows;
 const maxCsvMegabytes = config.uploads.maxCsvSize / (1024 * 1024);
@@ -98,21 +103,21 @@ export const steps = [
 
 // The path every API request takes through the server (see src/routes and src/middlewares)
 export const requestFlow = [
-  { label: 'GET /api/contacts', note: 'The browser calls the API with fetch()' },
-  { label: 'morgan', note: 'Logs the request' },
+  { label: 'GET /api/contacts', note: 'The React app calls the API with Axios' },
+  { label: 'morgan + Winston', note: 'Logs the request' },
   { label: 'protect', note: 'Verifies the JWT and loads the user' },
   { label: 'validate', note: 'express-validator checks the query' },
   { label: 'controller', note: 'Reads the request, sends the response' },
-  { label: 'service', note: 'Business rules: search, sort, paginate' },
-  { label: 'repository', note: 'The only layer that touches storage' },
-  { label: 'storage/*.json', note: 'Read with fs/promises' },
+  { label: 'service', note: 'Business rules: duplicates, soft delete' },
+  { label: 'repository', note: 'The only layer that talks to the database' },
+  { label: 'MongoDB', note: 'sort, skip, limit on indexed fields' },
 ];
 
 export const stats = [
-  { value: 21, label: 'REST endpoints' },
-  { value: 6, label: 'Node.js core modules' },
+  { value: 30, label: 'REST endpoints' },
+  { value: 4, label: 'MongoDB collections' },
   { value: maxImportRows, label: 'rows per CSV import' },
-  { value: 0, label: 'frontend frameworks' },
+  { value: 32, label: 'automated API tests' },
 ];
 
 export const faqs = [
@@ -133,6 +138,6 @@ export const faqs = [
   {
     question: 'Where is my data stored?',
     answer:
-      "In JSON files on the server, read and written with Node's non-blocking fs/promises module. The storage code sits behind a repository layer, so it can move to MongoDB without changing the API.",
+      'In MongoDB (Atlas in the cloud), through Mongoose models. Indexes keep searches fast, and contact photos are stored on Cloudinary, not on the server.',
   },
 ];
