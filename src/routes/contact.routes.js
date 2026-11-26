@@ -25,6 +25,7 @@ router
 // Fixed paths must be registered before "/:id", otherwise "export" would be read as an id
 router.get('/export', exportContactsRules, validate, contactController.exportContacts);
 router.get('/recent', contactController.getRecentlyViewed);
+router.get('/tags', contactController.getTags);
 router.post('/import', uploadCsv, contactController.importContacts);
 
 router
