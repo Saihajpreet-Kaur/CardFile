@@ -1,0 +1,32 @@
+# Render Blueprint: Render reads this file and creates the web service.
+# One service serves the API (/api), the home page (/) and the React app (/app).
+services:
+  - type: web
+    name: cardfile-crm
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health # Render restarts the service if this stops returning 200
+    autoDeploy: true # deploy again on every push to main
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22
+      - key: LOG_FILES
+        value: 'false'
+      - key: JWT_SECRET
+        generateValue: true # Render creates a long random secret
+      - key: MONGO_URI
+        sync: false # entered by hand in the Render dashboard (production Atlas database)
+      - key: CLIENT_URL
+        sync: false # e.g. https://cardfile-crm.onrender.com
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false # optional, e.g. a Render Key Value (Redis) instance
