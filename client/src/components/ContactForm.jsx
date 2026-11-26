@@ -3,7 +3,7 @@ import { useState } from 'react';
 const EMPTY = { firstName: '', lastName: '', email: '', phone: '', company: '', designation: '', tags: '', notes: '' };
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Client-side checks give instant feedback; the API validates again (it never trusts the client). */
+/** Client-side checks give instant feedback; the API still validates everything again (it never trusts the client). */
 function validate(values) {
   const errors = {};
   if (!values.firstName.trim()) errors.firstName = 'First name is required';
