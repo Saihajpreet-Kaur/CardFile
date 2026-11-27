@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import config from '../config/index.js';
 import { ROLES } from '../constants/index.js';
 import * as userRepository from '../repositories/user.repository.js';
@@ -19,8 +20,7 @@ const signToken = (user) =>
   });
 
 export async function register({ name, email, password }) {
-  const existing = await userRepository.findByEmail(email);
-  if (existing) throw AppError.conflict('An account with this email already exists');
+  if (await userRepository.existsByEmail(email)) throw AppError.conflict('An account with this email already exists');
 
   const user = await userRepository.create({
     name,
@@ -57,7 +57,8 @@ export async function verifyToken(token) {
     throw AppError.unauthorized(message);
   }
 
-  const user = await userRepository.findById(payload.sub);
+  // A token from before the move to MongoDB carries an id that is not an ObjectId
+  const user = mongoose.isValidObjectId(payload.sub) ? await userRepository.findById(payload.sub) : null;
   if (!user) throw AppError.unauthorized('The user for this token no longer exists');
 
   return toPublicUser(user);
