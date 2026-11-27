@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import multer from 'multer';
 import config from '../config/index.js';
 import AppError from '../utils/AppError.js';
@@ -24,6 +25,27 @@ function normalizeError(error) {
   }
   if (error.type === 'entity.too.large') {
     return new AppError('Request body is too large', 413);
+  }
+
+  // Mongoose schema validation failed (a rule in a model, e.g. maxlength or enum)
+  if (error instanceof mongoose.Error.ValidationError) {
+    const details = Object.values(error.errors).map((item) => ({
+      field: item.path,
+      location: 'body',
+      message: item.message,
+    }));
+    return AppError.validation(details);
+  }
+
+  // A value that cannot be cast to the schema type, e.g. "abc" as an ObjectId
+  if (error instanceof mongoose.Error.CastError) {
+    return AppError.badRequest(`Invalid ${error.path}: ${error.value}`);
+  }
+
+  // Unique index violated (E11000) - e.g. two requests created the same contact at the same time
+  if (error.code === 11000) {
+    const field = Object.keys(error.keyPattern ?? {}).find((key) => key !== 'userId') ?? 'value';
+    return AppError.conflict(`A record with this ${field} already exists`, { field });
   }
 
   // Errors thrown by csv-parse
