@@ -1,6 +1,6 @@
 <!-- ============ ANIMATED HEADER ============ -->
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:1e2761,100:3b82f6&height=200&section=header&text=Cardfile&fontSize=70&fontColor=ffffff&animation=fadeIn&fontAlignY=38&desc=Contact%20Manager%20%26%20Mini%20CRM&descAlignY=58&descSize=20" alt="Cardfile banner" />
+  <img src="./assets/banner.svg" alt="Cardfile banner" width="100%" />
 </p>
 
 <p align="center">
