@@ -1,15 +1,20 @@
 {
   "name": "crm-backend",
   "version": "1.0.0",
-  "description": "Contact Manager & Mini CRM - REST API built with Node.js and Express (CE-1 scope)",
+  "description": "Contact Manager & Mini CRM - MERN app: Node.js + Express REST API, MongoDB (Mongoose) and a React client",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "dev:local": "node scripts/dev-local.js",
+    "client:dev": "npm --prefix client run dev",
+    "build": "npm --prefix client install --include=dev && npm --prefix client run build",
     "seed": "node scripts/seed.js",
+    "test": "node --test --test-concurrency=1 \"tests/**/*.test.js\"",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "explain": "node scripts/explain-query.js"
   },
   "keywords": [
     "crm",
@@ -17,28 +22,37 @@
     "express",
     "rest-api"
   ],
-  "author": "Laksh Kalra",
+  "author": "Saihajpreet Kaur",
   "license": "ISC",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.11"
   },
   "dependencies": {
     "@json2csv/node": "^7.0.8",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
+    "cors": "^2.8.6",
     "csv-parse": "^7.0.3",
     "dotenv": "^18.0.9",
     "ejs": "^7.0.2",
     "express": "^5.3.0",
+    "express-rate-limit": "^8.7.5",
     "express-validator": "^7.3.2",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.12.3",
     "morgan": "^1.12.1",
     "multer": "^2.5.0",
-    "validator": "^13.15.35"
+    "redis": "^6.3.1",
+    "validator": "^13.15.35",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.13.0",
-    "globals": "^17.13.0"
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "mongodb-memory-server": "^11.4.0",
+    "supertest": "^7.3.2"
   }
 }
