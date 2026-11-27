@@ -1,18 +1,22 @@
-import JsonStore from './jsonStore.js';
+import User from '../models/User.js';
 
-const users = new JsonStore('users');
+const plain = (doc) => (doc ? doc.toObject() : null);
 
-export const findById = (id) => users.findById(id);
+export const findById = async (id) => plain(await User.findById(id));
 
-export const findByEmail = (email) => users.findOne((user) => user.email === email);
+/** Includes passwordHash (hidden by default) - only the login check needs it. */
+export const findByEmail = async (email) => plain(await User.findByEmailWithPassword(email));
 
-export const findAll = async () => {
-  const records = await users.find();
-  return records.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-};
+export const existsByEmail = async (email) => Boolean(await User.exists({ email: email.toLowerCase() }));
 
-export const create = (data) => users.insert(data);
+export async function findAll() {
+  const docs = await User.find().sort({ createdAt: 1 });
+  return docs.map(plain);
+}
 
-export const updateById = (id, changes) => users.updateById(id, changes);
+export const create = async (data) => plain(await User.create(data));
 
-export const clear = () => users.clear();
+export const updateById = async (id, changes) =>
+  plain(await User.findByIdAndUpdate(id, changes, { returnDocument: 'after', runValidators: true }));
+
+export const clear = () => User.deleteMany({});
