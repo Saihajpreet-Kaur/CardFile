@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Spinner } from './ui';
 
-/** Only signed-in users get through; others go to /signin and come back afterwards. */
+/** Only signedin users get through; others go to /signin and come back afterwards. */
 export function ProtectedRoute() {
   const { status } = useAuth();
   const location = useLocation();
