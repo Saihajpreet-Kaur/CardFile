@@ -4,14 +4,12 @@ import AppError from '../utils/AppError.js';
 import { toPublicUser } from './auth.service.js';
 
 export async function listUsers() {
-  const users = await userRepository.findAll();
+  const [users, counts] = await Promise.all([
+    userRepository.findAll(),
+    contactRepository.countActiveByUser(),
+  ]);
 
-  return Promise.all(
-    users.map(async (user) => ({
-      ...toPublicUser(user),
-      contactCount: await contactRepository.countForUser(user.id),
-    })),
-  );
+  return users.map((user) => ({ ...toPublicUser(user), contactCount: counts[user.id] ?? 0 }));
 }
 
 export async function updateRole(currentUser, userId, role) {
