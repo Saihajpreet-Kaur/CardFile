@@ -4,7 +4,7 @@ import { authApi } from '../api/endpoints';
 
 const AuthContext = createContext(null);
 
-// status: "checking" (validating a saved token) -> "signedIn" | "signedOut"
+// status "checking" (validating a saved token) -> "signedIn" | "signedOut"
 const initialState = {
   status: localStorage.getItem(TOKEN_KEY) ? 'checking' : 'signedOut',
   user: null,
