@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config({ quiet: true });
 
-const REQUIRED_VARS = ['JWT_SECRET'];
+const REQUIRED_VARS = ['JWT_SECRET', 'MONGO_URI'];
 
 for (const key of REQUIRED_VARS) {
   if (!process.env[key]) {
@@ -13,20 +13,46 @@ for (const key of REQUIRED_VARS) {
 
 const rootDir = path.resolve(import.meta.dirname, '..', '..');
 const megabytes = (value, fallback) => Number(value || fallback) * 1024 * 1024;
+const list = (value) =>
+  (value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const env = process.env.NODE_ENV || 'development';
 
 const config = Object.freeze({
-  env: process.env.NODE_ENV || 'development',
-  isProduction: process.env.NODE_ENV === 'production',
+  env,
+  isProduction: env === 'production',
+  isTest: env === 'test',
   port: Number(process.env.PORT) || 5000,
 
   paths: Object.freeze({
     root: rootDir,
     public: path.join(rootDir, 'public'),
     views: path.join(rootDir, 'views'),
-    data: path.resolve(rootDir, process.env.DATA_DIR || 'storage'),
+    client: path.join(rootDir, 'client', 'dist'),
     uploads: path.join(rootDir, 'uploads'),
     logs: path.join(rootDir, 'logs'),
   }),
+
+  db: Object.freeze({
+    uri: process.env.MONGO_URI,
+  }),
+
+  // Browser origins allowed to call the API (the React app in development or on Vercel)
+  cors: Object.freeze({
+    origins: list(process.env.CLIENT_URL || 'http://localhost:5173'),
+  }),
+
+  // Where the "Open the app" buttons on the home page point to
+  appUrl: process.env.APP_URL || '/app',
+
+  // Optional: without REDIS_URL an in-memory cache is used
+  redisUrl: process.env.REDIS_URL || '',
+
+  // Winston levels: error < warn < info < http (request lines) < debug
+  logLevel: process.env.LOG_LEVEL || (env === 'production' ? 'http' : 'debug'),
 
   jwt: Object.freeze({
     secret: process.env.JWT_SECRET,
